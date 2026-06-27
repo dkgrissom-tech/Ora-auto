@@ -2,9 +2,11 @@
 
 This poster runs three brands from one repo:
 
-- **Ora** (@meetora) — meeting assistant app
-- **Grissom Press** (@grissompress) — gothic coloring books
-- **Family Book Creator** (@familybookmaker) — personalized kids books
+- **Ora** — meeting assistant app — X: @meetora, **TikTok: @toolstack-y4g**
+- **Grissom Press** — gothic coloring books (Pinterest-primary, no TikTok)
+- **Family Book Creator** — personalized kids books (Pinterest-primary, no TikTok)
+
+**TikTok policy:** Only Ora posts to TikTok via this poster (account @toolstack-y4g). Grissom Press and Family Book Creator intentionally skip TikTok — Pinterest converts better for visual products and avoids cross-niche algorithm penalties.
 
 Each brand needs its own API keys. The work below is the same for each brand — just repeat with that brand's accounts and secrets.
 
@@ -158,19 +160,19 @@ For each permission Meta wants a 30-90 sec screen recording showing the API work
 
 ---
 
-## DAY 5+ — TikTok Content Posting (2-6 wk wait per brand)
+## DAY 5+ — TikTok Content Posting (Ora only, 2-6 wk wait)
 
-### For each brand:
+**Only one brand needs this: Ora, on @toolstack-y4g.** Grissom and Family Book intentionally skip TikTok.
 
-1. **https://developers.tiktok.com** → sign in with brand's TikTok
+1. **https://developers.tiktok.com** → sign in with **@toolstack-y4g**
 2. **Manage apps** → **Create app**
-3. App name: **OraAutoPoster** etc
+3. App name: **OraAutoPoster**
 4. Add product: **Content Posting API**
 5. Scopes: `video.publish` + `video.upload`
-6. Redirect URI: same domain pattern, will set up the verification file when you reach this step
+6. Redirect URI: `https://meetora-app.pplx.app/oauth/tiktok` — will set up the verification file when you reach this step
 7. Submit for audit
 
-✅ **After 2-6 wk wait: all 3 brands post automatically to TikTok.**
+✅ **After 2-6 wk wait: Ora posts automatically to TikTok via @toolstack-y4g.**
 
 ---
 
@@ -180,10 +182,10 @@ For each brand, confirm or create:
 
 | Item | Ora | Grissom Press | Family Book |
 |---|---|---|---|
-| X handle | @meetora | @grissompress | @familybookmaker (?) |
-| TikTok handle | @meetora | ? | ? |
-| Instagram handle | @meetora | ? | ? |
-| Pinterest business account | ✓ | ✓ | ? |
+| X handle | @meetora | @grissompress (?) | (?) |
+| TikTok handle | **@toolstack-y4g** | — (intentionally skipped) | — (intentionally skipped) |
+| Instagram handle | @meetora (?) | (?) | (?) |
+| Pinterest business account | ✓ (?) | ✓ | (?) |
 | Facebook page for IG link | needed | needed | needed |
 | Landing page URL | meetora-app.pplx.app | grissompress.pplx.app | familybookcreator.app |
 

@@ -286,6 +286,10 @@ def post_tiktok(brand, text, video_path):
         log(f"[{brand}] TikTok FAIL: {e}")
         return False
 
+# TikTok is only enabled for Ora (handle @toolstack-y4g).
+# Grissom Press and Family Book do not have TikTok accounts by design.
+TIKTOK_ALLOWED_BRANDS = {"ora"}
+
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
@@ -312,6 +316,9 @@ def main():
                                    p.get("pinterest_url", ""),
                                    p.get("image"))
                 elif plat == "tiktok":
+                    if brand not in TIKTOK_ALLOWED_BRANDS:
+                        log(f"[{brand}] TikTok disabled for this brand by policy — skipping")
+                        continue
                     post_tiktok(brand, p["body"], p.get("video"))
     if total_matched == 0:
         log(f"No posts scheduled across any brand for hour {now.hour}")
