@@ -1,14 +1,21 @@
 """
-Ora auto-post scheduler.
-Reads posts/YYYY-MM-DD.md, parses scheduled blocks, and posts anything
-scheduled for the current UTC hour to the listed platforms.
+Multi-brand auto-post scheduler.
 
-Each post block in the markdown file looks like:
+Reads brands/<brand>/posts/YYYY-MM-DD.md for each registered brand,
+parses scheduled blocks, and posts anything scheduled for the current
+UTC hour to the listed platforms using that brand's API keys.
+
+Each brand has its own set of secrets, prefixed with the brand name in caps:
+  ORA_X_API_KEY, ORA_LINKEDIN_ACCESS_TOKEN, ...
+  GRISSOM_X_API_KEY, GRISSOM_PINTEREST_ACCESS_TOKEN, ...
+  FAMILYBOOK_X_API_KEY, FAMILYBOOK_PINTEREST_ACCESS_TOKEN, ...
+
+Each post block in a markdown file looks like:
 
     ## 13:00 UTC  (08:00 CDT)
     platforms: x, linkedin, threads, instagram, pinterest, tiktok
-    image: assets/zara_drop1.png      # optional
-    video: assets/ora_demo.mp4         # optional, tiktok needs this
+    image: brands/ora/assets/zara_drop1.png      # optional
+    video: brands/ora/assets/ora_demo.mp4         # optional, tiktok needs this
     pinterest_title: Just say Ora
     pinterest_url: https://meetora-app.pplx.app
     ---
@@ -23,9 +30,12 @@ from pathlib import Path
 
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
 ROOT = Path(__file__).resolve().parent.parent
-POSTS_DIR = ROOT / "posts"
+BRANDS_DIR = ROOT / "brands"
 LOG_DIR = ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+
+# Brands registered to this poster
+BRANDS = ["ora", "grissom", "familybook"]
 
 def log(msg):
     ts = dt.datetime.utcnow().isoformat() + "Z"
@@ -34,11 +44,16 @@ def log(msg):
     with open(LOG_DIR / "scheduler.log", "a") as f:
         f.write(line + "\n")
 
-def parse_today():
+def secret(brand, key):
+    """Read a brand-prefixed secret from env. e.g. secret('ora', 'X_API_KEY')
+    looks for ORA_X_API_KEY."""
+    full = f"{brand.upper()}_{key}"
+    return os.environ.get(full)
+
+def parse_today(brand):
     today = dt.datetime.utcnow().strftime("%Y-%m-%d")
-    f = POSTS_DIR / f"{today}.md"
+    f = BRANDS_DIR / brand / "posts" / f"{today}.md"
     if not f.exists():
-        log(f"No posts file for {today}")
         return []
     text = f.read_text()
     posts = []
@@ -46,7 +61,6 @@ def parse_today():
     for b in blocks:
         header, *rest = b.split("\n", 1)
         body_section = rest[0] if rest else ""
-        # header looks like "13:00 UTC  (08:00 CDT)"
         try:
             hh = int(header.strip().split(":")[0])
         except ValueError:
@@ -70,6 +84,7 @@ def parse_today():
             else:
                 body_lines.append(line)
         posts.append({
+            "brand": brand,
             "hour": hh,
             "platforms": [p.strip() for p in meta.get("platforms", "").split(",") if p.strip()],
             "image": meta.get("image"),
@@ -80,38 +95,41 @@ def parse_today():
         })
     return posts
 
-def post_x(text):
+def asset_url(path):
+    return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
+
+def post_x(brand, text):
     import tweepy
-    keys = ["X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"]
-    if not all(os.environ.get(k) for k in keys):
-        log("X keys missing — skipping")
+    keys = {k: secret(brand, k) for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")}
+    if not all(keys.values()):
+        log(f"[{brand}] X keys missing — skipping")
         return False
     try:
         client = tweepy.Client(
-            consumer_key=os.environ["X_API_KEY"],
-            consumer_secret=os.environ["X_API_SECRET"],
-            access_token=os.environ["X_ACCESS_TOKEN"],
-            access_token_secret=os.environ["X_ACCESS_SECRET"],
+            consumer_key=keys["X_API_KEY"],
+            consumer_secret=keys["X_API_SECRET"],
+            access_token=keys["X_ACCESS_TOKEN"],
+            access_token_secret=keys["X_ACCESS_SECRET"],
         )
         if DRY_RUN:
-            log(f"[DRY] X post: {text[:60]}...")
+            log(f"[{brand}] [DRY] X post: {text[:60]}...")
             return True
         client.create_tweet(text=text[:280])
-        log(f"X posted OK: {text[:60]}...")
+        log(f"[{brand}] X posted OK: {text[:60]}...")
         return True
     except Exception as e:
-        log(f"X FAIL: {e}")
+        log(f"[{brand}] X FAIL: {e}")
         return False
 
-def post_linkedin(text):
+def post_linkedin(brand, text):
     import requests
-    token = os.environ.get("LINKEDIN_ACCESS_TOKEN")
-    urn = os.environ.get("LINKEDIN_AUTHOR_URN")
+    token = secret(brand, "LINKEDIN_ACCESS_TOKEN")
+    urn = secret(brand, "LINKEDIN_AUTHOR_URN")
     if not (token and urn):
-        log("LinkedIn keys missing — skipping")
+        log(f"[{brand}] LinkedIn keys missing — skipping")
         return False
     if DRY_RUN:
-        log(f"[DRY] LinkedIn post: {text[:60]}...")
+        log(f"[{brand}] [DRY] LinkedIn post: {text[:60]}...")
         return True
     body = {
         "author": urn,
@@ -131,23 +149,23 @@ def post_linkedin(text):
             json=body, timeout=30,
         )
         if r.status_code in (200, 201):
-            log("LinkedIn posted OK")
+            log(f"[{brand}] LinkedIn posted OK")
             return True
-        log(f"LinkedIn FAIL: {r.status_code} {r.text[:200]}")
+        log(f"[{brand}] LinkedIn FAIL: {r.status_code} {r.text[:200]}")
         return False
     except Exception as e:
-        log(f"LinkedIn FAIL: {e}")
+        log(f"[{brand}] LinkedIn FAIL: {e}")
         return False
 
-def post_threads(text):
+def post_threads(brand, text):
     import requests
-    token = os.environ.get("META_LONG_TOKEN")
-    user = os.environ.get("THREADS_USER_ID")
+    token = secret(brand, "META_LONG_TOKEN")
+    user = secret(brand, "THREADS_USER_ID")
     if not (token and user):
-        log("Threads keys missing — skipping")
+        log(f"[{brand}] Threads keys missing — skipping")
         return False
     if DRY_RUN:
-        log(f"[DRY] Threads post: {text[:60]}...")
+        log(f"[{brand}] [DRY] Threads post: {text[:60]}...")
         return True
     try:
         r = requests.post(
@@ -162,29 +180,28 @@ def post_threads(text):
                 params={"creation_id": cid, "access_token": token}, timeout=30,
             )
             if r2.status_code == 200:
-                log("Threads posted OK")
+                log(f"[{brand}] Threads posted OK")
                 return True
-        log(f"Threads FAIL: {r.status_code} {r.text[:200]}")
+        log(f"[{brand}] Threads FAIL: {r.status_code} {r.text[:200]}")
         return False
     except Exception as e:
-        log(f"Threads FAIL: {e}")
+        log(f"[{brand}] Threads FAIL: {e}")
         return False
 
-def post_instagram(text, image_path):
+def post_instagram(brand, text, image_path):
     import requests
-    token = os.environ.get("META_LONG_TOKEN")
-    user = os.environ.get("INSTAGRAM_USER_ID")
+    token = secret(brand, "META_LONG_TOKEN")
+    user = secret(brand, "INSTAGRAM_USER_ID")
     if not (token and user and image_path):
-        log("Instagram missing keys or image — skipping")
+        log(f"[{brand}] Instagram missing keys or image — skipping")
         return False
-    image_url = f"https://raw.githubusercontent.com/dkgrissom-tech/ora-auto/main/{image_path}"
     if DRY_RUN:
-        log(f"[DRY] Instagram post with image {image_url}: {text[:60]}...")
+        log(f"[{brand}] [DRY] Instagram post with image {image_path}: {text[:60]}...")
         return True
     try:
         r = requests.post(
             f"https://graph.facebook.com/v21.0/{user}/media",
-            params={"image_url": image_url, "caption": text, "access_token": token}, timeout=30,
+            params={"image_url": asset_url(image_path), "caption": text, "access_token": token}, timeout=30,
         )
         if r.status_code == 200:
             cid = r.json().get("id")
@@ -193,24 +210,23 @@ def post_instagram(text, image_path):
                 params={"creation_id": cid, "access_token": token}, timeout=30,
             )
             if r2.status_code == 200:
-                log("Instagram posted OK")
+                log(f"[{brand}] Instagram posted OK")
                 return True
-        log(f"Instagram FAIL: {r.status_code} {r.text[:200]}")
+        log(f"[{brand}] Instagram FAIL: {r.status_code} {r.text[:200]}")
         return False
     except Exception as e:
-        log(f"Instagram FAIL: {e}")
+        log(f"[{brand}] Instagram FAIL: {e}")
         return False
 
-def post_pinterest(text, title, dest_url, image_path):
+def post_pinterest(brand, text, title, dest_url, image_path):
     import requests
-    token = os.environ.get("PINTEREST_ACCESS_TOKEN")
-    board = os.environ.get("PINTEREST_BOARD_ID")
+    token = secret(brand, "PINTEREST_ACCESS_TOKEN")
+    board = secret(brand, "PINTEREST_BOARD_ID")
     if not (token and board and image_path):
-        log("Pinterest missing keys/image — skipping")
+        log(f"[{brand}] Pinterest missing keys/image — skipping")
         return False
-    image_url = f"https://raw.githubusercontent.com/dkgrissom-tech/ora-auto/main/{image_path}"
     if DRY_RUN:
-        log(f"[DRY] Pinterest pin: {title}")
+        log(f"[{brand}] [DRY] Pinterest pin: {title}")
         return True
     try:
         r = requests.post(
@@ -221,28 +237,26 @@ def post_pinterest(text, title, dest_url, image_path):
                 "title": title[:100],
                 "description": text[:500],
                 "link": dest_url,
-                "media_source": {"source_type": "image_url", "url": image_url},
+                "media_source": {"source_type": "image_url", "url": asset_url(image_path)},
             }, timeout=30,
         )
         if r.status_code in (200, 201):
-            log("Pinterest posted OK")
+            log(f"[{brand}] Pinterest posted OK")
             return True
-        log(f"Pinterest FAIL: {r.status_code} {r.text[:200]}")
+        log(f"[{brand}] Pinterest FAIL: {r.status_code} {r.text[:200]}")
         return False
     except Exception as e:
-        log(f"Pinterest FAIL: {e}")
+        log(f"[{brand}] Pinterest FAIL: {e}")
         return False
 
-def post_tiktok(text, video_path):
-    # TikTok upload-by-URL flow
+def post_tiktok(brand, text, video_path):
     import requests
-    token = os.environ.get("TIKTOK_ACCESS_TOKEN")
+    token = secret(brand, "TIKTOK_ACCESS_TOKEN")
     if not (token and video_path):
-        log("TikTok missing keys/video — skipping")
+        log(f"[{brand}] TikTok missing keys/video — skipping")
         return False
-    video_url = f"https://raw.githubusercontent.com/dkgrissom-tech/ora-auto/main/{video_path}"
     if DRY_RUN:
-        log(f"[DRY] TikTok: {video_url}")
+        log(f"[{brand}] [DRY] TikTok: {video_path}")
         return True
     try:
         r = requests.post(
@@ -259,44 +273,48 @@ def post_tiktok(text, video_path):
                 },
                 "source_info": {
                     "source": "PULL_FROM_URL",
-                    "video_url": video_url,
+                    "video_url": asset_url(video_path),
                 },
             }, timeout=30,
         )
         if r.status_code == 200:
-            log("TikTok posted OK")
+            log(f"[{brand}] TikTok posted OK")
             return True
-        log(f"TikTok FAIL: {r.status_code} {r.text[:200]}")
+        log(f"[{brand}] TikTok FAIL: {r.status_code} {r.text[:200]}")
         return False
     except Exception as e:
-        log(f"TikTok FAIL: {e}")
+        log(f"[{brand}] TikTok FAIL: {e}")
         return False
 
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
-    posts = parse_today()
-    matched = [p for p in posts if p["hour"] == now.hour]
-    if not matched:
-        log(f"No posts scheduled for hour {now.hour}")
-        return
-    for p in matched:
-        log(f"Posting to {p['platforms']}: {p['body'][:80]}...")
-        for plat in p["platforms"]:
-            if plat == "x":
-                post_x(p["body"])
-            elif plat == "linkedin":
-                post_linkedin(p["body"])
-            elif plat == "threads":
-                post_threads(p["body"])
-            elif plat == "instagram":
-                post_instagram(p["body"], p.get("image"))
-            elif plat == "pinterest":
-                post_pinterest(p["body"], p.get("pinterest_title", "Ora"),
-                               p.get("pinterest_url", "https://meetora-app.pplx.app"),
-                               p.get("image"))
-            elif plat == "tiktok":
-                post_tiktok(p["body"], p.get("video"))
+    total_matched = 0
+    for brand in BRANDS:
+        posts = parse_today(brand)
+        matched = [p for p in posts if p["hour"] == now.hour]
+        if not matched:
+            continue
+        total_matched += len(matched)
+        for p in matched:
+            log(f"[{brand}] Posting to {p['platforms']}: {p['body'][:80]}...")
+            for plat in p["platforms"]:
+                if plat == "x":
+                    post_x(brand, p["body"])
+                elif plat == "linkedin":
+                    post_linkedin(brand, p["body"])
+                elif plat == "threads":
+                    post_threads(brand, p["body"])
+                elif plat == "instagram":
+                    post_instagram(brand, p["body"], p.get("image"))
+                elif plat == "pinterest":
+                    post_pinterest(brand, p["body"], p.get("pinterest_title", brand),
+                                   p.get("pinterest_url", ""),
+                                   p.get("image"))
+                elif plat == "tiktok":
+                    post_tiktok(brand, p["body"], p.get("video"))
+    if total_matched == 0:
+        log(f"No posts scheduled across any brand for hour {now.hour}")
 
 if __name__ == "__main__":
     main()

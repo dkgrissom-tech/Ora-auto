@@ -1,8 +1,7 @@
-name: Ora Auto-Post
+name: Auto-Post (Multi-Brand)
 
 on:
   schedule:
-    # Every hour at :05 to give iPhone-style scheduling room
     - cron: '5 * * * *'
   workflow_dispatch:
     inputs:
@@ -22,27 +21,52 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install requests tweepy
+        run: pip install requests tweepy
 
       - name: Run scheduler
         env:
           DRY_RUN: ${{ github.event.inputs.dry_run }}
-          # X (Twitter) — Free tier, 1500 posts/mo
-          X_API_KEY:        ${{ secrets.X_API_KEY }}
-          X_API_SECRET:     ${{ secrets.X_API_SECRET }}
-          X_ACCESS_TOKEN:   ${{ secrets.X_ACCESS_TOKEN }}
-          X_ACCESS_SECRET:  ${{ secrets.X_ACCESS_SECRET }}
-          # LinkedIn — Free
-          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-          LINKEDIN_AUTHOR_URN:   ${{ secrets.LINKEDIN_AUTHOR_URN }}
-          # Meta (Instagram + Threads) — Free, fills in after review
-          META_LONG_TOKEN:        ${{ secrets.META_LONG_TOKEN }}
-          INSTAGRAM_USER_ID:      ${{ secrets.INSTAGRAM_USER_ID }}
-          THREADS_USER_ID:        ${{ secrets.THREADS_USER_ID }}
-          # Pinterest — Free after Standard approval
-          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
-          PINTEREST_BOARD_ID:     ${{ secrets.PINTEREST_BOARD_ID }}
-          # TikTok — Free after audit approval
-          TIKTOK_ACCESS_TOKEN:    ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+
+          # ===== ORA =====
+          ORA_X_API_KEY:              ${{ secrets.ORA_X_API_KEY }}
+          ORA_X_API_SECRET:           ${{ secrets.ORA_X_API_SECRET }}
+          ORA_X_ACCESS_TOKEN:         ${{ secrets.ORA_X_ACCESS_TOKEN }}
+          ORA_X_ACCESS_SECRET:        ${{ secrets.ORA_X_ACCESS_SECRET }}
+          ORA_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.ORA_LINKEDIN_ACCESS_TOKEN }}
+          ORA_LINKEDIN_AUTHOR_URN:    ${{ secrets.ORA_LINKEDIN_AUTHOR_URN }}
+          ORA_META_LONG_TOKEN:        ${{ secrets.ORA_META_LONG_TOKEN }}
+          ORA_INSTAGRAM_USER_ID:      ${{ secrets.ORA_INSTAGRAM_USER_ID }}
+          ORA_THREADS_USER_ID:        ${{ secrets.ORA_THREADS_USER_ID }}
+          ORA_PINTEREST_ACCESS_TOKEN: ${{ secrets.ORA_PINTEREST_ACCESS_TOKEN }}
+          ORA_PINTEREST_BOARD_ID:     ${{ secrets.ORA_PINTEREST_BOARD_ID }}
+          ORA_TIKTOK_ACCESS_TOKEN:    ${{ secrets.ORA_TIKTOK_ACCESS_TOKEN }}
+
+          # ===== GRISSOM PRESS =====
+          GRISSOM_X_API_KEY:              ${{ secrets.GRISSOM_X_API_KEY }}
+          GRISSOM_X_API_SECRET:           ${{ secrets.GRISSOM_X_API_SECRET }}
+          GRISSOM_X_ACCESS_TOKEN:         ${{ secrets.GRISSOM_X_ACCESS_TOKEN }}
+          GRISSOM_X_ACCESS_SECRET:        ${{ secrets.GRISSOM_X_ACCESS_SECRET }}
+          GRISSOM_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.GRISSOM_LINKEDIN_ACCESS_TOKEN }}
+          GRISSOM_LINKEDIN_AUTHOR_URN:    ${{ secrets.GRISSOM_LINKEDIN_AUTHOR_URN }}
+          GRISSOM_META_LONG_TOKEN:        ${{ secrets.GRISSOM_META_LONG_TOKEN }}
+          GRISSOM_INSTAGRAM_USER_ID:      ${{ secrets.GRISSOM_INSTAGRAM_USER_ID }}
+          GRISSOM_THREADS_USER_ID:        ${{ secrets.GRISSOM_THREADS_USER_ID }}
+          GRISSOM_PINTEREST_ACCESS_TOKEN: ${{ secrets.GRISSOM_PINTEREST_ACCESS_TOKEN }}
+          GRISSOM_PINTEREST_BOARD_ID:     ${{ secrets.GRISSOM_PINTEREST_BOARD_ID }}
+          GRISSOM_TIKTOK_ACCESS_TOKEN:    ${{ secrets.GRISSOM_TIKTOK_ACCESS_TOKEN }}
+
+          # ===== FAMILY BOOK CREATOR =====
+          FAMILYBOOK_X_API_KEY:              ${{ secrets.FAMILYBOOK_X_API_KEY }}
+          FAMILYBOOK_X_API_SECRET:           ${{ secrets.FAMILYBOOK_X_API_SECRET }}
+          FAMILYBOOK_X_ACCESS_TOKEN:         ${{ secrets.FAMILYBOOK_X_ACCESS_TOKEN }}
+          FAMILYBOOK_X_ACCESS_SECRET:        ${{ secrets.FAMILYBOOK_X_ACCESS_SECRET }}
+          FAMILYBOOK_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.FAMILYBOOK_LINKEDIN_ACCESS_TOKEN }}
+          FAMILYBOOK_LINKEDIN_AUTHOR_URN:    ${{ secrets.FAMILYBOOK_LINKEDIN_AUTHOR_URN }}
+          FAMILYBOOK_META_LONG_TOKEN:        ${{ secrets.FAMILYBOOK_META_LONG_TOKEN }}
+          FAMILYBOOK_INSTAGRAM_USER_ID:      ${{ secrets.FAMILYBOOK_INSTAGRAM_USER_ID }}
+          FAMILYBOOK_THREADS_USER_ID:        ${{ secrets.FAMILYBOOK_THREADS_USER_ID }}
+          FAMILYBOOK_PINTEREST_ACCESS_TOKEN: ${{ secrets.FAMILYBOOK_PINTEREST_ACCESS_TOKEN }}
+          FAMILYBOOK_PINTEREST_BOARD_ID:     ${{ secrets.FAMILYBOOK_PINTEREST_BOARD_ID }}
+          FAMILYBOOK_TIKTOK_ACCESS_TOKEN:    ${{ secrets.FAMILYBOOK_TIKTOK_ACCESS_TOKEN }}
+
         run: python scripts/run_scheduler.py

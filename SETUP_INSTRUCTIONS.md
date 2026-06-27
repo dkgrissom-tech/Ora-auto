@@ -1,188 +1,201 @@
-# Ora Auto-Post Setup — Elementary Steps
+# Multi-Brand Auto-Post Setup — Elementary Steps
 
-Read top to bottom. Each phase has a wait time. Start Phase 1 today.
+This poster runs three brands from one repo:
 
----
+- **Ora** (@meetora) — meeting assistant app
+- **Grissom Press** (@grissompress) — gothic coloring books
+- **Family Book Creator** (@familybookmaker) — personalized kids books
 
-## PHASE 1 — Same-day live (X + LinkedIn)
-
-### Step 1A: Create a GitHub repo for the auto-poster (3 min)
-
-1. Open Safari on your iPhone (or PC browser)
-2. Go to **https://github.com/new**
-3. Repo name: **ora-auto**
-4. Owner: **dkgrissom-tech** (your org)
-5. **Public** (must be public for image hosting to work)
-6. Check **"Add a README file"**
-7. Tap **Create repository**
-8. Reply "repo done" — I'll push all the code to it for you
-
-### Step 1B: Get X (Twitter) API keys (10 min)
-
-1. Open Safari
-2. Go to **https://developer.x.com/en/portal/petition/essential/basic-info**
-3. Sign in with your X account (the @meetora one)
-4. Use case: select **"Making a bot"**
-5. Country: United States
-6. App name: **OraAutoPoster**
-7. Tap **Next** through the screens, accepting defaults
-8. On the keys page you'll see four values — copy each one and reply with them tagged:
-   - `X_API_KEY=…`
-   - `X_API_SECRET=…`
-   - `X_ACCESS_TOKEN=…`
-   - `X_ACCESS_SECRET=…`
-9. ⚠️ Make sure to set permissions to **Read and Write** — Settings → User authentication settings → Read and Write → Save
-10. After changing permissions, **regenerate the Access Token & Secret** and re-send those two values
-
-### Step 1C: Get LinkedIn keys (8 min)
-
-1. Open **https://www.linkedin.com/developers/apps/new**
-2. App name: **OraAutoPoster**
-3. LinkedIn Page: select your personal page (or create a Company Page for Ora first if you'd rather)
-4. Privacy policy URL: **https://meetora-app.pplx.app/privacy**
-5. App logo: upload the Ora icon
-6. Tap **Create app**
-7. Go to **Auth** tab → copy the **Client ID** and **Client Secret**
-8. Reply with them tagged:
-   - `LINKEDIN_CLIENT_ID=…`
-   - `LINKEDIN_CLIENT_SECRET=…`
-9. I'll generate the access token + author URN for you on the next round (needs a one-time OAuth click from you)
-
-### Step 1D: Paste keys into GitHub Secrets (5 min) — DO THIS AFTER 1B+1C
-
-1. Open **https://github.com/dkgrissom-tech/ora-auto/settings/secrets/actions**
-2. Tap **New repository secret** for each value below
-3. Name + Secret pairs:
-   - `X_API_KEY` + the value
-   - `X_API_SECRET` + the value
-   - `X_ACCESS_TOKEN` + the value
-   - `X_ACCESS_SECRET` + the value
-   - `LINKEDIN_ACCESS_TOKEN` + the value (I'll give you this after OAuth)
-   - `LINKEDIN_AUTHOR_URN` + the value (I'll give you this)
-4. Reply "secrets done"
-
-✅ **After Phase 1: X and LinkedIn post automatically. No more manual posts on those two.**
+Each brand needs its own API keys. The work below is the same for each brand — just repeat with that brand's accounts and secrets.
 
 ---
 
-## PHASE 2 — 2-4 week wait (Instagram + Threads)
+## DAY 1 — Get X live for all 3 brands (same-day, ~30 min/brand)
 
-### Step 2A: Convert Instagram to Business (5 min)
+You'll repeat this loop 3 times — once per brand.
 
-1. Open Instagram app on iPhone
-2. Profile → top right hamburger menu → **Settings and activity**
+### For each brand:
+
+1. **Sign out of any existing X dev account** in your browser (else you'll create the app under the wrong account)
+2. **Sign in with the brand's X account**:
+   - Ora → log in as **@meetora**
+   - Grissom Press → log in as **@grissompress** (or whatever handle exists for the coloring books — confirm by checking x.com/grissompress)
+   - Family Book Creator → log in as your @familybookmaker handle (or create one named after the brand)
+3. Go to **https://developer.x.com/en/portal/petition/essential/basic-info**
+4. Use case: **Making a bot**
+5. Country: **United States**
+6. App name: **Ora-AutoPoster** / **GrissomPress-AutoPoster** / **FamilyBook-AutoPoster** (different per brand)
+7. If they ask for a 250-char description, paste this (swap the brand name):
+   > "[Brand] AutoPoster posts launch and marketing updates to the @[handle] X account for [brand], a [one-line description]. Owner account only, no reading/following/engagement automation. Volume under 100 posts/month."
+8. After app exists → **User authentication settings → Read and Write → Save**
+9. **Regenerate Access Token & Secret** after saving permissions
+10. Copy the 4 keys and reply tagged with the brand prefix:
+
+For Ora:
+```
+ORA_X_API_KEY=...
+ORA_X_API_SECRET=...
+ORA_X_ACCESS_TOKEN=...
+ORA_X_ACCESS_SECRET=...
+```
+
+For Grissom:
+```
+GRISSOM_X_API_KEY=...
+GRISSOM_X_API_SECRET=...
+GRISSOM_X_ACCESS_TOKEN=...
+GRISSOM_X_ACCESS_SECRET=...
+```
+
+For Family Book:
+```
+FAMILYBOOK_X_API_KEY=...
+FAMILYBOOK_X_API_SECRET=...
+FAMILYBOOK_X_ACCESS_TOKEN=...
+FAMILYBOOK_X_ACCESS_SECRET=...
+```
+
+11. Reply "X done for [brand]" — I'll walk you through pasting them into GitHub Secrets at https://github.com/dkgrissom-tech/Ora-auto/settings/secrets/actions
+
+✅ **After this round: all 3 brands post automatically to X.**
+
+---
+
+## DAY 2 — LinkedIn (same-day, ~15 min/brand)
+
+For LinkedIn you have two options:
+
+**Option A (simplest):** All 3 brands post from your personal LinkedIn — Ora content gets cross-pollinated to your professional audience, Grissom Press posts feel out of place. Not recommended.
+
+**Option B (recommended):** Create a **Company Page** for each brand, post from the page. LinkedIn lets you create up to 100 company pages from one personal profile.
+
+### For each brand:
+
+1. Open **https://www.linkedin.com/company/setup/new/**
+2. Page name: **Ora** / **Grissom Press** / **Family Book Creator**
+3. Industry, size, type — fill in (any reasonable answer is fine for a small business)
+4. Click **Create page**
+5. Once each page exists, open **https://www.linkedin.com/developers/apps/new**
+6. App name: same as X (e.g. **OraAutoPoster**)
+7. Associate it with the LinkedIn Company Page for that brand
+8. Privacy policy URL: brand's website
+9. Tap **Create**
+10. Auth tab → copy Client ID + Client Secret. Reply tagged like:
+    ```
+    ORA_LINKEDIN_CLIENT_ID=...
+    ORA_LINKEDIN_CLIENT_SECRET=...
+    ```
+11. I'll generate the OAuth URL for that brand → you click → approve → I get the access token
+
+✅ **After this: all 3 brands post automatically to LinkedIn.**
+
+---
+
+## DAY 3+ — Meta App Review for IG + Threads (2-4 wk wait per brand)
+
+### IMPORTANT — review submission limits
+
+Meta lets you submit 1 app at a time per developer account. You have two choices:
+
+**Option A (faster, recommended):** Create **3 separate Meta apps** under your one developer account (it allows this) — one per brand. Submit all three for review on the same day. Reviews run in parallel.
+
+**Option B (slower):** Submit one, wait, submit the next.
+
+### For each brand, repeat these steps:
+
+#### Step 1: Convert IG to Business
+1. Open IG app
+2. Profile → menu top right → **Settings and activity**
 3. **Account type and tools** → **Switch to professional account**
-4. Category: **Entrepreneur**
-5. Select **Business** (NOT Creator — fewer API restrictions)
-6. Enter dkgrissom@gmail.com
-7. Done
+4. Category:
+   - Ora: **Entrepreneur**
+   - Grissom Press: **Artist** or **Author**
+   - Family Book Creator: **Author**
+5. Select **Business** (NOT Creator)
 
-### Step 2B: Create / link Facebook Page (10 min)
+#### Step 2: Create Facebook Page + link IG
+1. Open **https://www.facebook.com/pages/create** on PC
+2. Page name: Brand name
+3. Category: App page / Author / Artist
+4. After created → Settings → Linked Accounts → Instagram → Connect → log in with brand's IG
 
-1. Open **https://www.facebook.com/pages/create** on your PC (easier than iPhone)
-2. Page name: **Ora — AI Meeting Assistant**
-3. Category: **App page**
-4. Bio: "Just say Ora. She listens, then emails you everything."
-5. Create
-6. On the new page → Settings → Linked Accounts → Instagram → **Connect Account** → log in with your @meetora IG
-7. Reply "FB page done"
-
-### Step 2C: Create Meta Developer App (15 min)
-
+#### Step 3: Create Meta Developer App
 1. Open **https://developers.facebook.com/apps/create**
-2. Sign in with the same Facebook account
-3. Use case: **Other**
-4. App type: **Business**
-5. App name: **OraAutoPoster**
-6. Contact email: dkgrissom@gmail.com
-7. Create
-8. From left menu: **Add Product** → Add **Instagram** AND **Threads API**
-9. Go to **App Review → Permissions and Features**
-10. Request these permissions:
-    - `instagram_basic`
-    - `instagram_content_publish`
-    - `pages_show_list`
-    - `pages_read_engagement`
-    - `business_management`
-    - `threads_basic`
-    - `threads_content_publish`
-11. For each one, you'll need to record a **screen-recording video** showing the API working with a test post
-12. Reply "Meta app created" — I'll write the exact video script and code to test before you submit
+2. Use case: **Other** → Business app type
+3. App name: **OraAutoPoster** / **GrissomAutoPoster** / **FamilyBookAutoPoster**
+4. Contact email: dkgrissom@gmail.com
+5. Add Products: **Instagram** + **Threads API**
 
-### Step 2D: Submit for Meta App Review
+#### Step 4: Request permissions
+- `instagram_basic`
+- `instagram_content_publish`
+- `pages_show_list`
+- `pages_read_engagement`
+- `business_management`
+- `threads_basic`
+- `threads_content_publish`
 
-After steps 2A-2C are done, you'll record one 2-3 minute screen recording showing the full posting flow, then click Submit. Then we **wait 2-4 weeks** for Meta to approve.
+#### Step 5: Record demo video + submit
+For each permission Meta wants a 30-90 sec screen recording showing the API working. I'll write the exact tap-by-tap script when you get to this step.
 
-✅ **After Phase 2: IG + Threads also post automatically.**
+✅ **After 2-4 wk wait: all 3 brands post automatically to IG + Threads.**
 
 ---
 
-## PHASE 3 — 1-4 week wait (Pinterest)
+## DAY 4+ — Pinterest Standard Access (1-4 wk wait per brand)
 
-### Step 3A: Pinterest Business account (3 min)
+### For each brand:
 
-1. Already have business account from the Grissom Press work — skip if so
-2. Otherwise: Pinterest app → Profile → Settings → **Convert to business account**
+1. **https://developers.pinterest.com/apps/** → Create app
+2. App name: **OraAutoPoster** etc
+3. App description (paste, swap brand):
+   > "Automated cross-posting for [Brand]. The app posts marketing pins on behalf of the @[handle] Pinterest business account only. No data reading, no scraping, owner-account writes only."
+4. Submit for **Trial access** (approved next business day)
+5. Record 2-min demo of pin-creation flow → submit for **Standard access**
+6. I'll write the demo script when you reach this step
 
-### Step 3B: Pinterest Developer app (10 min)
-
-1. Open **https://developers.pinterest.com/apps/**
-2. **Create app**
-3. App name: **OraAutoPoster**
-4. App description: "Automated cross-posting for Ora, an iOS meeting assistant"
-5. Save
-6. Submit for **Trial access** — usually approved next business day
-7. Once trial approved, record a 2-min demo video of pin-creation flow → submit for **Standard access**
-8. Reply "Pinterest app created" — I'll write the demo video script
-
-### Step 3C: Get the access token (5 min after Standard approval)
-
-I'll walk you through OAuth when the time comes.
-
-✅ **After Phase 3: Pinterest pins post automatically.**
+✅ **After 1-4 wk wait: all 3 brands post automatically to Pinterest.**
 
 ---
 
-## PHASE 4 — 2-6 week wait (TikTok)
+## DAY 5+ — TikTok Content Posting (2-6 wk wait per brand)
 
-### Step 4A: TikTok Developer app (10 min)
+### For each brand:
 
-1. Open **https://developers.tiktok.com**
-2. Sign in with your TikTok @meetora account
-3. **Manage apps** → **Create app**
-4. App name: **OraAutoPoster**
-5. App description: "Automated short-form video posting for Ora, an iOS meeting assistant"
-6. Add product: **Content Posting API**
-7. Request scopes: `video.publish` + `video.upload`
-8. Set redirect URI: `https://meetora-app.pplx.app/oauth/tiktok`
-9. Verify URL prefix on the meetora-app.pplx.app domain (I'll add the verification file when you reach this step)
-10. Submit for audit
-11. Reply "TikTok app created" — I'll write the audit demo video script
+1. **https://developers.tiktok.com** → sign in with brand's TikTok
+2. **Manage apps** → **Create app**
+3. App name: **OraAutoPoster** etc
+4. Add product: **Content Posting API**
+5. Scopes: `video.publish` + `video.upload`
+6. Redirect URI: same domain pattern, will set up the verification file when you reach this step
+7. Submit for audit
 
-✅ **After Phase 4: TikTok posts automatically.**
+✅ **After 2-6 wk wait: all 3 brands post automatically to TikTok.**
 
 ---
 
-## Throughout: what you'll NEVER have to do manually
+## What you'll need from each brand BEFORE we start
 
-After all 4 phases land:
+For each brand, confirm or create:
 
-- ❌ Never paste a post to X again
-- ❌ Never paste to LinkedIn
-- ❌ Never paste to Threads
-- ❌ Never upload an IG photo by hand
-- ❌ Never schedule a pin in the Pinterest app
-- ❌ Never upload a video to TikTok
+| Item | Ora | Grissom Press | Family Book |
+|---|---|---|---|
+| X handle | @meetora | @grissompress | @familybookmaker (?) |
+| TikTok handle | @meetora | ? | ? |
+| Instagram handle | @meetora | ? | ? |
+| Pinterest business account | ✓ | ✓ | ? |
+| Facebook page for IG link | needed | needed | needed |
+| Landing page URL | meetora-app.pplx.app | grissompress.pplx.app | familybookcreator.app |
 
-✅ Reddit you'll **manually** do once or twice during the launch (auto-Reddit = ban)
-✅ Product Hunt launch is **1 click on July 10** at 12:01am PT — that's it
+**If any of those handles don't exist yet, tell me which ones and I'll write the signup steps for those too.**
 
 ---
 
-## What I need from you RIGHT NOW
+## What you do RIGHT NOW
 
-Just Phase 1, Step 1A:
+Just answer:
 
-**Create the empty GitHub repo `dkgrissom-tech/ora-auto` (public, with README), then reply "repo done".**
+1. **What's the X/TikTok/IG handle for Grissom Press?** (or do I need to write steps to create them?)
+2. **What's the X/TikTok/IG handle for Family Book Creator?** (or do I need to write steps to create them?)
 
-That unblocks me to push the auto-poster code, draft all 14 days of posts, and start filling in keys as you produce them.
+Once I know those, I'll write the customized signup walkthrough for each brand's missing accounts.
