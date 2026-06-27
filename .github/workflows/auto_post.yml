@@ -1,0 +1,48 @@
+name: Ora Auto-Post
+
+on:
+  schedule:
+    # Every hour at :05 to give iPhone-style scheduling room
+    - cron: '5 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no actual posting)'
+        type: boolean
+        default: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests tweepy
+
+      - name: Run scheduler
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          # X (Twitter) — Free tier, 1500 posts/mo
+          X_API_KEY:        ${{ secrets.X_API_KEY }}
+          X_API_SECRET:     ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN:   ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET:  ${{ secrets.X_ACCESS_SECRET }}
+          # LinkedIn — Free
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_AUTHOR_URN:   ${{ secrets.LINKEDIN_AUTHOR_URN }}
+          # Meta (Instagram + Threads) — Free, fills in after review
+          META_LONG_TOKEN:        ${{ secrets.META_LONG_TOKEN }}
+          INSTAGRAM_USER_ID:      ${{ secrets.INSTAGRAM_USER_ID }}
+          THREADS_USER_ID:        ${{ secrets.THREADS_USER_ID }}
+          # Pinterest — Free after Standard approval
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID:     ${{ secrets.PINTEREST_BOARD_ID }}
+          # TikTok — Free after audit approval
+          TIKTOK_ACCESS_TOKEN:    ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+        run: python scripts/run_scheduler.py
