@@ -30,12 +30,13 @@ To add a 4th brand later:
 
 | Platform | Approval | Notes |
 |---|---|---|
-| X (Twitter) | Same-day | Free tier, 1500 posts/mo per account |
-| LinkedIn | Same-day | Free, OAuth |
-| Threads | 2-4 wk | Meta App Review required |
-| Instagram | 2-4 wk | Meta App Review required |
-| Pinterest | 1-4 wk | Standard access review required |
-| TikTok | 2-6 wk | Content Posting audit required |
+| **Bluesky** | Same-hour | Free, no review, no credit card. Replaces X. |
+| **LinkedIn** | Same-day | Free, OAuth |
+| **Threads** | 2-4 wk | Meta App Review required |
+| **Instagram** | 2-4 wk | Meta App Review required |
+| **Pinterest** | 1-4 wk | Standard access review required |
+| **TikTok** | 2-6 wk | Content Posting audit required. Ora only (@toolstack-y4g). |
+| **X (Twitter)** | MANUAL ONLY | X charges now ($200/mo Basic). Auto-poster doesn't touch it. Post by hand for big moments. |
 
 ## Post file format
 

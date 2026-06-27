@@ -12,54 +12,55 @@ Each brand needs its own API keys. The work below is the same for each brand —
 
 ---
 
-## DAY 1 — Get X live for all 3 brands (same-day, ~30 min/brand)
+## X (Twitter) — MANUAL ONLY
 
-You'll repeat this loop 3 times — once per brand.
+**X charges now** (Free tier requires a credit card on file; Basic tier is $200/month). Per the no-paid-services rule, the auto-poster does NOT touch X.
+
+When you have a big-moment X post to make (Product Hunt launch day, major milestone, viral reply), just post it by hand from your phone like a normal person. The auto-poster handles the daily volume across the other platforms.
+
+---
+
+## DAY 1 — Bluesky for all 3 brands (truly free, same-hour, ~5 min/brand)
+
+Bluesky replaces X as the short-form text channel. No credit card, no review, no API approval — just create the account and generate an app password.
 
 ### For each brand:
 
-1. **Sign out of any existing X dev account** in your browser (else you'll create the app under the wrong account)
-2. **Sign in with the brand's X account**:
-   - Ora → log in as **@meetora**
-   - Grissom Press → log in as **@grissompress** (or whatever handle exists for the coloring books — confirm by checking x.com/grissompress)
-   - Family Book Creator → log in as your @familybookmaker handle (or create one named after the brand)
-3. Go to **https://developer.x.com/en/portal/petition/essential/basic-info**
-4. Use case: **Making a bot**
-5. Country: **United States**
-6. App name: **Ora-AutoPoster** / **GrissomPress-AutoPoster** / **FamilyBook-AutoPoster** (different per brand)
-7. If they ask for a 250-char description, paste this (swap the brand name):
-   > "[Brand] AutoPoster posts launch and marketing updates to the @[handle] X account for [brand], a [one-line description]. Owner account only, no reading/following/engagement automation. Volume under 100 posts/month."
-8. After app exists → **User authentication settings → Read and Write → Save**
-9. **Regenerate Access Token & Secret** after saving permissions
-10. Copy the 4 keys and reply tagged with the brand prefix:
+1. Open **https://bsky.app** on iPhone or PC
+2. **Create account** (or sign in if you already have one for the brand)
+3. Handle suggestions:
+   - Ora: **meetora.bsky.social** (or claim a custom domain later)
+   - Grissom Press: **grissompress.bsky.social**
+   - Family Book Creator: **familybookcreator.bsky.social**
+4. Use email + password — they don't ask for a credit card
+5. Once logged in, go to **Settings → App Passwords → Add App Password**
+6. Name it: **AutoPoster**
+7. Bluesky generates a one-time password like `abcd-efgh-ijkl-mnop` — copy it immediately, you can't view it again
+8. Reply tagged like:
 
 For Ora:
 ```
-ORA_X_API_KEY=...
-ORA_X_API_SECRET=...
-ORA_X_ACCESS_TOKEN=...
-ORA_X_ACCESS_SECRET=...
+ORA_BLUESKY_HANDLE=meetora.bsky.social
+ORA_BLUESKY_APP_PASSWORD=abcd-efgh-ijkl-mnop
 ```
 
 For Grissom:
 ```
-GRISSOM_X_API_KEY=...
-GRISSOM_X_API_SECRET=...
-GRISSOM_X_ACCESS_TOKEN=...
-GRISSOM_X_ACCESS_SECRET=...
+GRISSOM_BLUESKY_HANDLE=grissompress.bsky.social
+GRISSOM_BLUESKY_APP_PASSWORD=...
 ```
 
 For Family Book:
 ```
-FAMILYBOOK_X_API_KEY=...
-FAMILYBOOK_X_API_SECRET=...
-FAMILYBOOK_X_ACCESS_TOKEN=...
-FAMILYBOOK_X_ACCESS_SECRET=...
+FAMILYBOOK_BLUESKY_HANDLE=familybookcreator.bsky.social
+FAMILYBOOK_BLUESKY_APP_PASSWORD=...
 ```
 
-11. Reply "X done for [brand]" — I'll walk you through pasting them into GitHub Secrets at https://github.com/dkgrissom-tech/Ora-auto/settings/secrets/actions
+9. I'll walk you through pasting them into GitHub Secrets at https://github.com/dkgrissom-tech/Ora-auto/settings/secrets/actions
 
-✅ **After this round: all 3 brands post automatically to X.**
+✅ **After this round: all 3 brands post automatically to Bluesky.**
+
+**Honest time estimate: 5-10 min per brand, no waiting periods.**
 
 ---
 
@@ -182,10 +183,11 @@ For each brand, confirm or create:
 
 | Item | Ora | Grissom Press | Family Book |
 |---|---|---|---|
-| X handle | @meetora | @grissompress (?) | (?) |
-| TikTok handle | **@toolstack-y4g** | — (intentionally skipped) | — (intentionally skipped) |
-| Instagram handle | @meetora (?) | (?) | (?) |
-| Pinterest business account | ✓ (?) | ✓ | (?) |
+| Bluesky handle | needs creation | needs creation | needs creation |
+| X handle (manual only) | @meetora | @grissompress (?) | (?) |
+| TikTok handle | **@toolstack-y4g** | — (skipped) | — (skipped) |
+| Instagram handle | (?) | (?) | (?) |
+| Pinterest business account | (?) | ✓ | (?) |
 | Facebook page for IG link | needed | needed | needed |
 | Landing page URL | meetora-app.pplx.app | grissompress.pplx.app | familybookcreator.app |
 
@@ -195,9 +197,9 @@ For each brand, confirm or create:
 
 ## What you do RIGHT NOW
 
-Just answer:
+Two steps, both fast:
 
-1. **What's the X/TikTok/IG handle for Grissom Press?** (or do I need to write steps to create them?)
-2. **What's the X/TikTok/IG handle for Family Book Creator?** (or do I need to write steps to create them?)
+1. **Create the 3 Bluesky accounts** — 5 min each, no credit card. Follow the DAY 1 section above.
+2. **Reply with the 3 handles + 3 app passwords** in the tagged format.
 
-Once I know those, I'll write the customized signup walkthrough for each brand's missing accounts.
+That unblocks Bluesky posting for all 3 brands today. Then we move to LinkedIn tomorrow, then Meta/Pinterest reviews start the multi-week wait.

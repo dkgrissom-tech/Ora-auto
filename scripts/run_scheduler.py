@@ -98,27 +98,24 @@ def parse_today(brand):
 def asset_url(path):
     return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
 
-def post_x(brand, text):
-    import tweepy
-    keys = {k: secret(brand, k) for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")}
-    if not all(keys.values()):
-        log(f"[{brand}] X keys missing — skipping")
+def post_bluesky(brand, text):
+    from atproto import Client
+    handle = secret(brand, "BLUESKY_HANDLE")
+    password = secret(brand, "BLUESKY_APP_PASSWORD")
+    if not (handle and password):
+        log(f"[{brand}] Bluesky keys missing — skipping")
         return False
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Bluesky post: {text[:60]}...")
+        return True
     try:
-        client = tweepy.Client(
-            consumer_key=keys["X_API_KEY"],
-            consumer_secret=keys["X_API_SECRET"],
-            access_token=keys["X_ACCESS_TOKEN"],
-            access_token_secret=keys["X_ACCESS_SECRET"],
-        )
-        if DRY_RUN:
-            log(f"[{brand}] [DRY] X post: {text[:60]}...")
-            return True
-        client.create_tweet(text=text[:280])
-        log(f"[{brand}] X posted OK: {text[:60]}...")
+        client = Client()
+        client.login(handle, password)
+        client.send_post(text=text[:300])
+        log(f"[{brand}] Bluesky posted OK")
         return True
     except Exception as e:
-        log(f"[{brand}] X FAIL: {e}")
+        log(f"[{brand}] Bluesky FAIL: {e}")
         return False
 
 def post_linkedin(brand, text):
@@ -303,8 +300,10 @@ def main():
         for p in matched:
             log(f"[{brand}] Posting to {p['platforms']}: {p['body'][:80]}...")
             for plat in p["platforms"]:
-                if plat == "x":
-                    post_x(brand, p["body"])
+                if plat == "bluesky":
+                    post_bluesky(brand, p["body"])
+                elif plat == "x":
+                    log(f"[{brand}] X is manual-only by policy — skipping auto-post")
                 elif plat == "linkedin":
                     post_linkedin(brand, p["body"])
                 elif plat == "threads":

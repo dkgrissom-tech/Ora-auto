@@ -21,17 +21,15 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests tweepy
+        run: pip install requests atproto
 
       - name: Run scheduler
         env:
           DRY_RUN: ${{ github.event.inputs.dry_run }}
 
           # ===== ORA =====
-          ORA_X_API_KEY:              ${{ secrets.ORA_X_API_KEY }}
-          ORA_X_API_SECRET:           ${{ secrets.ORA_X_API_SECRET }}
-          ORA_X_ACCESS_TOKEN:         ${{ secrets.ORA_X_ACCESS_TOKEN }}
-          ORA_X_ACCESS_SECRET:        ${{ secrets.ORA_X_ACCESS_SECRET }}
+          ORA_BLUESKY_HANDLE:         ${{ secrets.ORA_BLUESKY_HANDLE }}
+          ORA_BLUESKY_APP_PASSWORD:   ${{ secrets.ORA_BLUESKY_APP_PASSWORD }}
           ORA_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.ORA_LINKEDIN_ACCESS_TOKEN }}
           ORA_LINKEDIN_AUTHOR_URN:    ${{ secrets.ORA_LINKEDIN_AUTHOR_URN }}
           ORA_META_LONG_TOKEN:        ${{ secrets.ORA_META_LONG_TOKEN }}
@@ -42,10 +40,8 @@ jobs:
           ORA_TIKTOK_ACCESS_TOKEN:    ${{ secrets.ORA_TIKTOK_ACCESS_TOKEN }}
 
           # ===== GRISSOM PRESS =====
-          GRISSOM_X_API_KEY:              ${{ secrets.GRISSOM_X_API_KEY }}
-          GRISSOM_X_API_SECRET:           ${{ secrets.GRISSOM_X_API_SECRET }}
-          GRISSOM_X_ACCESS_TOKEN:         ${{ secrets.GRISSOM_X_ACCESS_TOKEN }}
-          GRISSOM_X_ACCESS_SECRET:        ${{ secrets.GRISSOM_X_ACCESS_SECRET }}
+          GRISSOM_BLUESKY_HANDLE:         ${{ secrets.GRISSOM_BLUESKY_HANDLE }}
+          GRISSOM_BLUESKY_APP_PASSWORD:   ${{ secrets.GRISSOM_BLUESKY_APP_PASSWORD }}
           GRISSOM_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.GRISSOM_LINKEDIN_ACCESS_TOKEN }}
           GRISSOM_LINKEDIN_AUTHOR_URN:    ${{ secrets.GRISSOM_LINKEDIN_AUTHOR_URN }}
           GRISSOM_META_LONG_TOKEN:        ${{ secrets.GRISSOM_META_LONG_TOKEN }}
@@ -56,10 +52,8 @@ jobs:
           GRISSOM_TIKTOK_ACCESS_TOKEN:    ${{ secrets.GRISSOM_TIKTOK_ACCESS_TOKEN }}
 
           # ===== FAMILY BOOK CREATOR =====
-          FAMILYBOOK_X_API_KEY:              ${{ secrets.FAMILYBOOK_X_API_KEY }}
-          FAMILYBOOK_X_API_SECRET:           ${{ secrets.FAMILYBOOK_X_API_SECRET }}
-          FAMILYBOOK_X_ACCESS_TOKEN:         ${{ secrets.FAMILYBOOK_X_ACCESS_TOKEN }}
-          FAMILYBOOK_X_ACCESS_SECRET:        ${{ secrets.FAMILYBOOK_X_ACCESS_SECRET }}
+          FAMILYBOOK_BLUESKY_HANDLE:         ${{ secrets.FAMILYBOOK_BLUESKY_HANDLE }}
+          FAMILYBOOK_BLUESKY_APP_PASSWORD:   ${{ secrets.FAMILYBOOK_BLUESKY_APP_PASSWORD }}
           FAMILYBOOK_LINKEDIN_ACCESS_TOKEN:  ${{ secrets.FAMILYBOOK_LINKEDIN_ACCESS_TOKEN }}
           FAMILYBOOK_LINKEDIN_AUTHOR_URN:    ${{ secrets.FAMILYBOOK_LINKEDIN_AUTHOR_URN }}
           FAMILYBOOK_META_LONG_TOKEN:        ${{ secrets.FAMILYBOOK_META_LONG_TOKEN }}
