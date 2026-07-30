@@ -1,0 +1,188 @@
+name: Generate Next Week's Posts (Draft PR)
+
+# Runs Sunday nights at 02:00 UTC (Sat 21:00 CDT / Sun 20:00 CST) so the
+# resulting draft PR is waiting for Don's Sunday-morning batch review.
+#
+# Also runnable on demand via workflow_dispatch for testing or off-cycle
+# regeneration.
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'   # Sunday 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      brand:
+        description: 'Brand to generate (leave blank for all enabled brands)'
+        required: false
+        default: ''
+      start_date:
+        description: 'Week-start Monday in YYYY-MM-DD (blank = coming Monday)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run: log intended output, call no APIs, write no files'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Discovery: which brands to run this cycle. On dispatch with a specific
+  # brand, output just that one; otherwise output every enabled schedule.
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      brands: ${{ steps.pick.outputs.brands }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - id: pick
+        name: Pick brands
+        shell: python
+        env:
+          INPUT_BRAND: ${{ github.event.inputs.brand }}
+        run: |
+          import json, os, sys
+          from pathlib import Path
+          import yaml
+
+          sched_dir = Path("brand-brain/schedules")
+          inp = os.environ.get("INPUT_BRAND", "").strip()
+
+          if inp:
+              brands = [inp]
+          else:
+              brands = []
+              for p in sorted(sched_dir.glob("*.yaml")):
+                  data = yaml.safe_load(p.read_text()) or {}
+                  if data.get("enabled", True):
+                      brands.append(data["brand"])
+
+          out = os.environ["GITHUB_OUTPUT"]
+          with open(out, "a") as f:
+              f.write(f"brands={json.dumps(brands)}\n")
+          print(f"Selected brands: {brands}")
+
+  generate:
+    needs: discover
+    if: ${{ needs.discover.outputs.brands != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false      # one brand's failure should not block others
+      matrix:
+        brand: ${{ fromJson(needs.discover.outputs.brands) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install pyyaml
+
+      - name: Generate week
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          ARGS="--brand ${{ matrix.brand }}"
+          if [ -n "${{ github.event.inputs.start_date }}" ]; then
+            ARGS="$ARGS --start ${{ github.event.inputs.start_date }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python brand-brain/scripts/generate_week.py $ARGS
+
+      - name: Upload generated files as artifact
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-${{ matrix.brand }}
+          path: brands/${{ matrix.brand }}/posts/
+          if-no-files-found: warn
+
+  # Consolidate all brands' outputs into a single draft PR
+  open_pr:
+    needs: [discover, generate]
+    if: ${{ needs.discover.outputs.brands != '[]' && github.event.inputs.dry_run != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+
+      - name: Copy artifacts into brand post dirs
+        run: |
+          set -e
+          for artifact_dir in /tmp/artifacts/generated-*; do
+            [ -d "$artifact_dir" ] || continue
+            brand=$(basename "$artifact_dir" | sed 's/^generated-//')
+            mkdir -p "brands/${brand}/posts"
+            # Only copy files that don't already exist (generate_week.py already
+            # skips existing files; this is a belt-and-suspenders guard so a
+            # manual regenerate never overwrites reviewer-edited content)
+            for f in "$artifact_dir"/*.md; do
+              [ -f "$f" ] || continue
+              dest="brands/${brand}/posts/$(basename "$f")"
+              if [ ! -f "$dest" ]; then
+                cp "$f" "$dest"
+                echo "added $dest"
+              else
+                echo "kept existing $dest"
+              fi
+            done
+          done
+
+      - name: Detect changes
+        id: detect
+        run: |
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git status --porcelain)" ]; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open draft PR
+        if: steps.detect.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: auto/generated-posts-${{ github.run_id }}
+          delete-branch: true
+          draft: true
+          commit-message: "chore(auto): generated post drafts for the coming week"
+          title: "auto: generated post drafts for the coming week"
+          body: |
+            Auto-generated post drafts from `generate_posts.yml`.
+
+            **Batch review checklist (matches Don's marketing-batch rule):**
+
+            - [ ] Every body reads in the correct persona voice — no drift, no AI-ese
+            - [ ] Hook variants in the `# hook_variants` comments — swap in the winner if better than the body's opening
+            - [ ] Asset paths (`image:` / `video:`) resolve — none marked TODO
+            - [ ] Any post that references Ora launch is gated behind Build 100 (should not be present until `.gates/build-100-shipped` exists)
+            - [ ] Platform lists are correct — no `buffer` or `tailwind` unless that brand pays for them
+            - [ ] Hashtags in the `# hashtags:` comments are on-brand
+
+            **When approved:** merge as-is (or edit bodies inline first). The `auto_post.yml` scheduler picks up the merged files at the next hourly tick.
+
+            **If bad output:** close the PR without merging, tune `brand-brain/brands/<persona>/brain/brain_map.json` or the agent template, re-run this workflow.
+          labels: |
+            auto-generated
+            content-review

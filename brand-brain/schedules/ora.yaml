@@ -1,0 +1,74 @@
+brand: ora
+persona: zara
+enabled: true
+
+gates:
+  - path: .gates/build-100-shipped
+    reason: "Ora launch content is paused until interruption-safe recap ships (Build 100)"
+
+# 15 slots/week baseline. Adjust after first D0/D7 cohort read.
+# Times are UTC (matches ## HH:00 UTC block headers).
+# 14 UTC = 09:00 CDT, 18 UTC = 13:00 CDT, 22 UTC = 17:00 CDT.
+slots:
+  # Monday — week-open teach
+  - day_of_week: mon
+    hour_utc: 14
+    platforms: [bluesky, linkedin, threads]
+    agent: linkedin_post
+    angle: "week-open teach beat: name one specific failure mode of transcription tools that Ora sidesteps"
+
+  - day_of_week: mon
+    hour_utc: 18
+    platforms: [bluesky, threads, instagram, tiktok]
+    agent: ig_poster
+    angle: "peer-story hook — a founder or PM who tried Ora after quietly turning off Otter"
+    asset: brands/ora/assets/zara_meetora_9x16.mp4
+
+  # Tuesday — the interruption case
+  - day_of_week: tue
+    hour_utc: 14
+    platforms: [bluesky, linkedin, threads]
+    agent: linkedin_post
+    angle: "the interruption case: meeting ends early, most tools produce garbage — Ora doesn't"
+
+  - day_of_week: tue
+    hour_utc: 22
+    platforms: [linkedin]
+    agent: linkedin_post
+    angle: "close-of-day single-beat observation about meeting fatigue"
+
+  # Wednesday — visual/video midweek
+  - day_of_week: wed
+    hour_utc: 18
+    platforms: [bluesky, threads, instagram, tiktok]
+    agent: ig_poster
+    angle: "the bot in the room reframe — why every other tool announces itself and Ora doesn't"
+    asset: brands/ora/assets/zara_meetora_9x16.mp4
+
+  # Thursday — proof or use case
+  - day_of_week: thu
+    hour_utc: 14
+    platforms: [bluesky, linkedin, threads]
+    agent: linkedin_post
+    angle: "proof beat: one concrete use case (sales, therapy, PM standup) with a real detail"
+
+  - day_of_week: thu
+    hour_utc: 18
+    platforms: [bluesky, threads, instagram]
+    agent: ig_poster
+    angle: "phone-already-does-this reframe with a visual beat"
+
+  # Friday — Zara direct voice, softer
+  - day_of_week: fri
+    hour_utc: 18
+    platforms: [bluesky, threads, instagram, tiktok]
+    agent: ig_poster
+    angle: "Friday soft: Zara talks about a meeting she almost lost and what Ora caught"
+    asset: brands/ora/assets/zara_meetora_9x16.mp4
+
+  # Saturday — sparse, one long-form
+  - day_of_week: sat
+    hour_utc: 16
+    platforms: [linkedin, threads]
+    agent: linkedin_post
+    angle: "weekend long: the case against always-on meeting recorders (privacy + trust angle)"
