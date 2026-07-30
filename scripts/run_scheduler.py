@@ -13,15 +13,27 @@ Each brand has its own set of secrets, prefixed with the brand name in caps:
 Each post block in a markdown file looks like:
 
     ## 13:00 UTC  (08:00 CDT)
-    platforms: x, linkedin, threads, instagram, pinterest, tiktok
+    platforms: x, linkedin, threads, instagram, pinterest, tiktok, buffer, tailwind
     image: brands/ora/assets/zara_drop1.png      # optional
     video: brands/ora/assets/ora_demo.mp4         # optional, tiktok needs this
     pinterest_title: Just say Ora
     pinterest_url: https://meetora-app.pplx.app
+    tailwind_board_id: 123456789                  # optional, Tailwind pin target
     ---
     Body of the post goes here.
     Multiple lines OK.
     ---
+
+Supported platforms:
+  bluesky        — direct API, free
+  x              — manual-only by policy (skipped auto)
+  linkedin       — direct API, free
+  threads        — direct API, free (Meta app-review may apply)
+  instagram      — direct API, free (Meta business + app-review required)
+  pinterest      — direct API, free (Pinterest app-review required)
+  tiktok         — direct API, Ora brand only by policy
+  buffer         — optional paid fallback, queues to Buffer's schedule
+  tailwind       — optional paid Pinterest fallback, requires image + board_id
 """
 import os
 import sys
@@ -91,6 +103,7 @@ def parse_today(brand):
             "video": meta.get("video"),
             "pinterest_title": meta.get("pinterest_title"),
             "pinterest_url": meta.get("pinterest_url"),
+            "tailwind_board_id": meta.get("tailwind_board_id", ""),
             "body": "\n".join(body_lines).strip(),
         })
     return posts
@@ -287,6 +300,123 @@ def post_tiktok(brand, text, video_path):
 # Grissom Press and Family Book do not have TikTok accounts by design.
 TIKTOK_ALLOWED_BRANDS = {"ora"}
 
+# -----------------------------------------------------------------------------
+# Buffer + Tailwind — optional paid scheduling fallback path.
+#
+# Both are opt-in per post block. If the block lists `buffer` or `tailwind` in
+# platforms and the brand has the required secrets, the handler queues the
+# post into that service's schedule and lets it fan out to the connected
+# platforms. If secrets are missing, the handler no-ops with a clear log line.
+#
+# Buffer secrets per brand (only add for brands you actually pay for):
+#   <BRAND>_BUFFER_ACCESS_TOKEN         # OAuth2 token from Buffer
+#   <BRAND>_BUFFER_PROFILE_IDS          # comma-separated list of profile IDs
+#                                       # (one per connected channel in that
+#                                       #  Buffer account)
+#
+# Tailwind secrets per brand:
+#   <BRAND>_TAILWIND_API_KEY            # Tailwind API key
+#   <BRAND>_TAILWIND_BOARD_ID           # optional default Pinterest board ID
+#                                       # (falls back to block-level
+#                                       #  `tailwind_board_id: ...` meta)
+#
+# Design intent: use Buffer as a fallback for platforms whose direct-API rail
+# is blocked on app-review (e.g. Instagram business, Threads for a new brand),
+# and Tailwind specifically for Pinterest volume once the direct Pinterest
+# rail proves rate-limiting. The direct-API handlers above stay the default.
+# -----------------------------------------------------------------------------
+
+def post_buffer(brand, text, image_path=None, video_path=None):
+    import requests
+    token = secret(brand, "BUFFER_ACCESS_TOKEN")
+    profile_ids_raw = secret(brand, "BUFFER_PROFILE_IDS")
+    if not (token and profile_ids_raw):
+        log(f"[{brand}] Buffer keys missing — skipping")
+        return False
+    profile_ids = [p.strip() for p in profile_ids_raw.split(",") if p.strip()]
+    if not profile_ids:
+        log(f"[{brand}] Buffer profile IDs empty — skipping")
+        return False
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Buffer queue to {len(profile_ids)} profile(s): {text[:60]}...")
+        return True
+
+    # Buffer's classic REST API queues an update against one or more profiles.
+    # See https://buffer.com/developers/api/updates
+    payload = {
+        "profile_ids[]": profile_ids,
+        "text": text[:2400],
+        "shorten": "false",
+        "now": "false",  # queue rather than post immediately
+    }
+    media_url = None
+    if video_path:
+        media_url = asset_url(video_path)
+    elif image_path:
+        media_url = asset_url(image_path)
+    if media_url:
+        payload["media[link]"] = media_url
+        payload["media[photo]"] = media_url
+
+    try:
+        r = requests.post(
+            "https://api.bufferapp.com/1/updates/create.json",
+            headers={"Authorization": f"Bearer {token}"},
+            data=payload, timeout=30,
+        )
+        if r.status_code in (200, 201):
+            log(f"[{brand}] Buffer queued OK ({len(profile_ids)} profile(s))")
+            return True
+        log(f"[{brand}] Buffer FAIL: {r.status_code} {r.text[:200]}")
+        return False
+    except Exception as e:
+        log(f"[{brand}] Buffer FAIL: {e}")
+        return False
+
+
+def post_tailwind(brand, text, image_path=None, dest_url="", board_id=""):
+    import requests
+    api_key = secret(brand, "TAILWIND_API_KEY")
+    if not api_key:
+        log(f"[{brand}] Tailwind keys missing — skipping")
+        return False
+    board = board_id or secret(brand, "TAILWIND_BOARD_ID") or ""
+    if not board:
+        log(f"[{brand}] Tailwind board_id missing (no block meta, no default secret) — skipping")
+        return False
+    if not image_path:
+        log(f"[{brand}] Tailwind requires an image — skipping")
+        return False
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Tailwind pin → board {board}: {text[:60]}...")
+        return True
+
+    # Tailwind's public Create Pin endpoint. Auth is Bearer <api_key>.
+    # https://developer.tailwindapp.com/
+    payload = {
+        "board_id": board,
+        "image_url": asset_url(image_path),
+        "description": text[:500],
+        "destination_url": dest_url or "",
+    }
+    try:
+        r = requests.post(
+            "https://api.tailwindapp.com/v1/pins",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload, timeout=30,
+        )
+        if r.status_code in (200, 201, 202):
+            log(f"[{brand}] Tailwind pin scheduled OK (board {board})")
+            return True
+        log(f"[{brand}] Tailwind FAIL: {r.status_code} {r.text[:200]}")
+        return False
+    except Exception as e:
+        log(f"[{brand}] Tailwind FAIL: {e}")
+        return False
+
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
@@ -319,6 +449,18 @@ def main():
                         log(f"[{brand}] TikTok disabled for this brand by policy — skipping")
                         continue
                     post_tiktok(brand, p["body"], p.get("video"))
+                elif plat == "buffer":
+                    post_buffer(brand, p["body"], p.get("image"), p.get("video"))
+                elif plat == "tailwind":
+                    post_tailwind(
+                        brand,
+                        p["body"],
+                        image_path=p.get("image"),
+                        dest_url=p.get("pinterest_url", ""),
+                        board_id=p.get("tailwind_board_id", ""),
+                    )
+                else:
+                    log(f"[{brand}] Unknown platform '{plat}' — skipping")
     if total_matched == 0:
         log(f"No posts scheduled across any brand for hour {now.hour}")
 

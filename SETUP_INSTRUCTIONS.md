@@ -203,3 +203,57 @@ Two steps, both fast:
 2. **Reply with the 3 handles + 3 app passwords** in the tagged format.
 
 That unblocks Bluesky posting for all 3 brands today. Then we move to LinkedIn tomorrow, then Meta/Pinterest reviews start the multi-week wait.
+
+---
+
+## OPTIONAL — Buffer (paid, fallback for review-gated platforms)
+
+Buffer becomes useful when the direct-API rail for Instagram, Threads (for a
+new brand), or Pinterest is stuck in app-review purgatory. Instead of waiting,
+you can queue those posts into Buffer's schedule and let Buffer deliver them.
+
+**Only add Buffer for brands you actually pay for.** Missing secrets = the
+handler skips silently.
+
+### Per brand:
+
+1. Sign in at **https://buffer.com** with the brand's account
+2. Connect the channels you want Buffer to post to for that brand
+3. Get an OAuth access token via https://buffer.com/developers/apps
+4. In Buffer, find the profile ID for each connected channel
+   (URL of a profile page includes it, or use the /1/profiles.json API)
+5. In GitHub → Repo Settings → Secrets → Actions, add:
+   - `<BRAND>_BUFFER_ACCESS_TOKEN` — the OAuth token
+   - `<BRAND>_BUFFER_PROFILE_IDS` — comma-separated profile IDs
+
+Then in any post block for that brand, add `buffer` to the `platforms:` line.
+
+---
+
+## OPTIONAL — Tailwind (paid, Pinterest volume + smart-scheduling)
+
+Tailwind is Pinterest-specific and pays off once you're pushing 20+ pins/week
+per brand and the direct Pinterest rail is rate-limiting.
+
+**Requires an image** on every post block (Tailwind pins are visual).
+
+### Per brand:
+
+1. Sign in at **https://tailwindapp.com** with the brand's Pinterest account
+2. Get an API key from https://developer.tailwindapp.com/
+3. Note the Pinterest board ID you want as the default (Tailwind or Pinterest
+   URL shows it)
+4. In GitHub → Repo Settings → Secrets → Actions, add:
+   - `<BRAND>_TAILWIND_API_KEY` — the API key
+   - `<BRAND>_TAILWIND_BOARD_ID` — the default board ID
+
+Then in a post block, add `tailwind` to `platforms:` and either use the default
+board or override per-post with `tailwind_board_id: <id>`.
+
+---
+
+## OPTIONAL — brand-brain (persona voice system)
+
+See `brand-brain/README.md`. Two-stage system for on-voice content generation
+across brands and personas. Costs about $1–3/persona/month against your
+Anthropic key. No new SaaS.
