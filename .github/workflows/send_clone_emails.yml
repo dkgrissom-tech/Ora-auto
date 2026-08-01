@@ -1,0 +1,83 @@
+name: Send Clone Emails
+
+# Runs :35 of every hour — 30 min offset from ingest (:50) and 30 min from
+# auto-post (:05) so the three workflows never step on each other's git
+# push/pull races.
+on:
+  schedule:
+    - cron: '35 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (build campaign payloads, do not create/send)'
+        type: boolean
+        default: false
+      brand:
+        description: 'Restrict to one brand (blank = all)'
+        type: choice
+        options:
+          - ''
+          - ora
+          - grissom
+          - familybook
+        default: ''
+
+jobs:
+  email:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Send clone emails
+        env:
+          # ===== ORA =====
+          ORA_MAILERLITE_API_KEY:   ${{ secrets.ORA_MAILERLITE_API_KEY }}
+          ORA_MAILERLITE_GROUP_ID:  ${{ secrets.ORA_MAILERLITE_GROUP_ID }}
+          # ===== GRISSOM PRESS =====
+          GRISSOM_MAILERLITE_API_KEY:   ${{ secrets.GRISSOM_MAILERLITE_API_KEY }}
+          GRISSOM_MAILERLITE_GROUP_ID:  ${{ secrets.GRISSOM_MAILERLITE_GROUP_ID }}
+          # ===== FAMILY BOOK =====
+          FAMILYBOOK_MAILERLITE_API_KEY:   ${{ secrets.FAMILYBOOK_MAILERLITE_API_KEY }}
+          FAMILYBOOK_MAILERLITE_GROUP_ID:  ${{ secrets.FAMILYBOOK_MAILERLITE_GROUP_ID }}
+        run: |
+          set -e
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ github.event.inputs.brand }}" ]; then
+            ARGS="$ARGS --brand ${{ github.event.inputs.brand }}"
+          fi
+          python scripts/send_clone_emails.py $ARGS
+
+      - name: Commit archived drafts (if any)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git config user.name  "ora-email-bot[bot]"
+          git config user.email "ora-email-bot@users.noreply.github.com"
+          git add email_drafts/ logs/email.log || true
+          if git diff --cached --quiet; then
+            echo "No email changes to commit."
+          else
+            git commit -m "chore(email): archive sent clone drafts [skip ci]"
+            git push
+          fi
+
+      - name: Upload email log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-log
+          path: logs/email.log
+          if-no-files-found: ignore
