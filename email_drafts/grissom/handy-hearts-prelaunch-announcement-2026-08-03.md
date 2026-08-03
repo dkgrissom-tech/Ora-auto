@@ -1,3 +1,10 @@
+---
+subject: You're About to Meet Cedar Hollow
+from_name: D.K. Grissom
+from_email: hello@grissompress.com
+reply_to: don@grissom.tech
+schedule: 2026-08-08 14:00 UTC
+---
 # You're About to Meet Cedar Hollow
 
 Hey friend —
