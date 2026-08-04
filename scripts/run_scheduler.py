@@ -100,11 +100,21 @@ def asset_url(path):
 
 def post_bluesky(brand, text):
     from atproto import Client
-    handle = secret(brand, "BLUESKY_HANDLE")
-    password = secret(brand, "BLUESKY_APP_PASSWORD")
+    handle_raw = secret(brand, "BLUESKY_HANDLE") or ""
+    password_raw = secret(brand, "BLUESKY_APP_PASSWORD") or ""
+    # Normalize handle: strip whitespace, leading @, and lowercase.
+    # Bluesky handles are case-insensitive but the client is strict about
+    # formatting: no @, no spaces, no smart quotes.
+    handle = handle_raw.strip().lstrip("@").strip().lower()
+    # Normalize app password: strip whitespace only. Preserve hyphens/case.
+    password = password_raw.strip()
     if not (handle and password):
         log(f"[{brand}] Bluesky keys missing — skipping")
         return False
+    # Log a redacted preview so 401s are diagnosable without leaking secrets.
+    handle_preview = handle if "." in handle else f"{handle}(no-domain?)"
+    pw_preview = f"len={len(password)} hyphens={password.count('-')}"
+    log(f"[{brand}] Bluesky login attempt handle={handle_preview} pw={pw_preview}")
     if DRY_RUN:
         log(f"[{brand}] [DRY] Bluesky post: {text[:60]}...")
         return True
