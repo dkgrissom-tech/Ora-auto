@@ -115,10 +115,14 @@ def post_bluesky(brand, text):
     if not (handle and password):
         log(f"[{brand}] Bluesky keys missing — skipping")
         return False
-    # Log a redacted preview so 401s are diagnosable without leaking secrets.
-    handle_preview = handle if "." in handle else f"{handle}(no-domain?)"
-    pw_preview = f"len={len(password)} hyphens={password.count('-')}"
-    log(f"[{brand}] Bluesky login attempt handle={handle_preview} pw={pw_preview}")
+    # Log a fingerprint (character count + shape) that GitHub can't mask
+    # because it doesn't match the secret value directly.
+    h_len = len(handle)
+    h_dots = handle.count(".")
+    h_endswith_bsky = handle.endswith(".bsky.social")
+    pw_len = len(password)
+    pw_hyphens = password.count("-")
+    log(f"[{brand}] Bluesky login fingerprint: handle_len={h_len} dots={h_dots} ends_bsky_social={h_endswith_bsky} pw_len={pw_len} pw_hyphens={pw_hyphens}")
     if DRY_RUN:
         log(f"[{brand}] [DRY] Bluesky post: {text[:60]}...")
         return True
