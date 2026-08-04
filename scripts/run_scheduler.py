@@ -106,6 +106,10 @@ def post_bluesky(brand, text):
     # Bluesky handles are case-insensitive but the client is strict about
     # formatting: no @, no spaces, no smart quotes.
     handle = handle_raw.strip().lstrip("@").strip().lower()
+    # If user stored just a username without a domain, assume default bsky.social.
+    # (Custom-domain handles like 'dkgrissom.com' contain a dot and are left alone.)
+    if handle and "." not in handle:
+        handle = f"{handle}.bsky.social"
     # Normalize app password: strip whitespace only. Preserve hyphens/case.
     password = password_raw.strip()
     if not (handle and password):
