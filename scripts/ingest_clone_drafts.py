@@ -31,7 +31,7 @@ blocks. Each block:
     ---
     date: 2026-08-05           # required, YYYY-MM-DD (UTC)
     time: 14:00                # required, HH:MM in UTC (24h)
-    platforms: bluesky, threads, instagram, pinterest
+    platforms: bluesky, threads, instagram, pinterest    # or [bluesky, threads] YAML-list style
     image: brands/ora/assets/drop1_8am_listening.png     # optional
     video: brands/ora/assets/ora_demo.mp4                # optional
     pinterest_title: Just say Ora
@@ -205,8 +205,11 @@ def validate_and_normalize(brand: str, block: dict, existing_hours_by_date) -> O
             return None
 
     # platforms
+    # Accept comma string ("bluesky, threads") or YAML list style ("[bluesky]", "[bluesky, threads]").
+    # Strip brackets and split on commas so Claude drafts survive either convention.
     plats_raw = meta.get("platforms", "")
-    plats = [p.strip().lower() for p in plats_raw.split(",") if p.strip()]
+    plats_clean = plats_raw.strip().strip("[]")
+    plats = [p.strip().strip("'\"").lower() for p in plats_clean.split(",") if p.strip().strip("'\"")]
     if not plats:
         log(f"[{brand}] SKIP: no platforms listed")
         return None
