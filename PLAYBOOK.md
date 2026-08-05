@@ -97,6 +97,87 @@ For 14 drafts, that's ~15 minutes of clipboard shuffling. Zero API burn on Perpl
 - **LinkedIn** — needs Grissom Press company page created first
 - **TikTok** — API application not yet submitted
 
+## Weekly Trend Scan (upgrade path — do this AFTER launch push)
+
+Right now Claude drafts from canon + platform best-practices, not live viral data. To sharpen conversion, layer in a weekly trend scan.
+
+### The 30-minute Sunday ritual
+
+**Step 1 — Ask Perplexity for the week's top hooks (5 min)**
+
+Open a NEW Perplexity chat (not this ongoing one) and paste:
+
+```
+Find the top 10 BookTok / Instagram Reels / Threads posts in the last 7 days
+in these niches: widow romance, small-town romance, grief romance, second
+chance romance, blue collar hero romance. For each, give me:
+- Hook line (first 3 seconds of caption or opening line)
+- Platform + posting date
+- View count / engagement signal
+- Sound used (if TikTok/Reel)
+- Top 3 comment themes
+- Why it worked (1 sentence)
+
+Return as a markdown table.
+```
+
+**Step 2 — Save the output (2 min)**
+
+Save the response to a new file in the repo:
+```
+trends/grissom/2026-WW.md   (WW = ISO week number)
+```
+
+Commit via `Commit-CloneFromClipboard` — it lands in the right place automatically.
+
+**Step 3 — Paste top 3 hooks into Claude prompt (5 min)**
+
+When drafting next week's content in the Ora Text Clone project, add this line to the prompt:
+
+```
+Here are 3 hooks that went viral this week in adjacent niches. Adapt the
+STRUCTURE (not the exact words) to Don Rourke / Dana Whitfield / Cedar Hollow:
+
+1. [paste hook 1]
+2. [paste hook 2]
+3. [paste hook 3]
+```
+
+Claude will produce content that matches proven-viral structure while staying on-brand.
+
+**Step 4 — Track what actually converts (once you have data)**
+
+After 2-3 weeks of posting, check MailerLite + Bluesky analytics:
+- Which posts drove the most preorder-link clicks?
+- Which emails had the highest open rate?
+- Which hooks got the most saves/shares?
+
+Add a `wins.md` file to the trends folder with the top 5 performing hooks + why. THIS is your real conversion data — worth more than any external viral scan.
+
+### Automation (later — free path)
+
+Add a GitHub Action that runs every Sunday at 9am CDT:
+1. Reads `trends/grissom/latest.md`
+2. Sends you a MailerLite email or Bluesky DM with the top hooks
+3. Reminder to run the Sunday ritual
+
+Can build this in an evening when you're ready.
+
+### Paid tools (only if free path fails, per your standing rules)
+
+- **Tokfluence** ($29/mo) — TikTok trend + viral video search
+- **ExplodingTopics** ($39/mo) — early trend detection across platforms
+- **Metricool** ($22/mo) — competitor content tracking + analytics
+- **Publer** ($10/mo) — cross-platform scheduling with analytics
+
+Skip these until your free workflow proves insufficient. The Sunday Perplexity ritual replicates 80% of what these tools do.
+
+### Why this waits until after launch push
+
+Your current 58-slot schedule is built on 2026 platform-best-practice research (sources at the bottom of the schedule PDF). Adding viral-hook adaptation is polish, not foundation. Launch first. Optimize after real conversion data lands.
+
+---
+
 ## When something breaks
 
 1. Check the last workflow run: `gh run list -R dkgrissom-tech/Ora-auto --limit 5`
