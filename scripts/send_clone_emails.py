@@ -154,7 +154,31 @@ def parse_schedule(value: str) -> Optional[Tuple[str, str, str]]:
     return m.group("date"), m.group("hh"), m.group("mm")
 
 
-def validate(draft: dict) -> Optional[dict]:
+# Per-brand sender defaults. Applied when a draft's frontmatter omits
+# from_name / from_email / reply_to. Emails MUST use a verified sender
+# in MailerLite or the API returns 422.
+BRAND_EMAIL_DEFAULTS = {
+    "grissom": {
+        "from_name": "D.K. Grissom",
+        "from_email": "dkgrissom@gmail.com",
+        "reply_to": "dkgrissom@gmail.com",
+    },
+    # ora + familybook can be added when their senders are verified.
+}
+
+
+def apply_brand_defaults(draft: dict, brand: str) -> None:
+    """Fill missing sender fields from BRAND_EMAIL_DEFAULTS in place."""
+    defaults = BRAND_EMAIL_DEFAULTS.get(brand, {})
+    m = draft["meta"]
+    for k, v in defaults.items():
+        if not m.get(k):
+            m[k] = v
+
+
+def validate(draft: dict, brand: str = "") -> Optional[dict]:
+    if brand:
+        apply_brand_defaults(draft, brand)
     m = draft["meta"]
     missing = [k for k in ("subject", "from_name", "from_email") if not m.get(k)]
     if missing:
@@ -377,7 +401,7 @@ def process_brand(brand: str, dry_run: bool) -> Dict[str, int]:
         if not parsed:
             stats["invalid"] += 1
             continue
-        email = validate(parsed)
+        email = validate(parsed, brand)
         if not email:
             stats["invalid"] += 1
             continue
