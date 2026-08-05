@@ -113,3 +113,8 @@
 [2026-08-03T20:15:32.726274Z] [email] [grissom] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-03T20:15:32.726449Z] [email] [familybook] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-03T20:15:32.726540Z] [email] TOTAL: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-05T01:30:16.465586Z] [email] Email tick — brands=['grissom'] dry_run=False
+[2026-08-05T01:30:19.332875Z] [email] [grissom] created campaign id=194923375654602706 subject='You're About to Meet Cedar Hollow'
+[2026-08-05T01:30:19.889017Z] [email] [grissom] scheduled campaign id=194923375654602706
+[2026-08-05T01:30:19.889475Z] [email] [grissom] summary: {'drafts': 1, 'sent': 0, 'scheduled': 1, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-05T01:30:19.889536Z] [email] TOTAL: {'drafts': 1, 'sent': 0, 'scheduled': 1, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
