@@ -553,3 +553,62 @@
 [2026-08-06T14:52:27.792373Z] [ingest] [grissom] summary: {'drafts': 56, 'blocks': 63, 'wrote': 20, 'skipped': 0, 'invalid': 43}
 [2026-08-06T14:52:27.792516Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-06T14:52:27.792567Z] [ingest] TOTAL: {'drafts': 58, 'blocks': 63, 'wrote': 20, 'skipped': 0, 'invalid': 43}
+[2026-08-06T15:01:21.702864Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-06T15:01:21.704073Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-06T15:01:21.704203Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-06T15:01:21.704283Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T15:01:21.705613Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T15:01:21.706003Z] [ingest] [grissom] wrote: 2026-08-13 16:00 UTC (id=187122c13590, platforms=['instagram']) -> brands/grissom/posts/2026-08-13.md
+[2026-08-06T15:01:21.706177Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-carousel-arc-recruitment-2026-08-13.md
+[2026-08-06T15:01:21.706560Z] [ingest] [grissom] wrote: 2026-08-12 16:00 UTC (id=8125040edb10, platforms=['instagram']) -> brands/grissom/posts/2026-08-12.md
+[2026-08-06T15:01:21.706718Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-carousel-meet-dana-2026-08-12.md
+[2026-08-06T15:01:21.707050Z] [ingest] [grissom] wrote: 2026-08-16 00:00 UTC (id=7a2cc61745d9, platforms=['instagram']) -> brands/grissom/posts/2026-08-16.md
+[2026-08-06T15:01:21.707197Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-carousel-moodboard-aug15-2026-08-15.md
+[2026-08-06T15:01:21.707562Z] [ingest] [grissom] wrote: 2026-08-09 00:00 UTC (id=7e199cc269c6, platforms=['instagram']) -> brands/grissom/posts/2026-08-09.md
+[2026-08-06T15:01:21.707720Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-carousel-small-towns-heal-2026-08-08.md
+[2026-08-06T15:01:21.708060Z] [ingest] [grissom] wrote: 2026-08-11 16:00 UTC (id=29436fe7b2cf, platforms=['instagram']) -> brands/grissom/posts/2026-08-11.md
+[2026-08-06T15:01:21.708211Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-reel-don-seabee-2026-08-11.md
+[2026-08-06T15:01:21.708553Z] [ingest] [grissom] wrote: 2026-08-14 18:00 UTC (id=65cba33762ca, platforms=['instagram']) -> brands/grissom/posts/2026-08-14.md
+[2026-08-06T15:01:21.708700Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-reel-porch-scene-2026-08-14.md
+[2026-08-06T15:01:21.709035Z] [ingest] [grissom] wrote: 2026-08-07 19:00 UTC (id=9600182e5617, platforms=['instagram']) -> brands/grissom/posts/2026-08-07.md
+[2026-08-06T15:01:21.709179Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-ig-reel-preorder-2026-08-07.md
+[2026-08-06T15:01:21.709296Z] [ingest] [grissom] empty draft: handy-hearts-instagram-carousel-2026-08-03.md
+[2026-08-06T15:01:21.709450Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.709567Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.709682Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.709799Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.709915Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710030Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710144Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710260Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710372Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710518Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710633Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710747Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710872Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.710988Z] [ingest] [grissom] empty draft: handy-hearts-pinterest-pin-2026-08-03.md
+[2026-08-06T15:01:21.711111Z] [ingest] [grissom] SKIP: empty body
+[2026-08-06T15:01:21.711473Z] [ingest] [grissom] wrote: 2026-08-17 15:00 UTC (id=dbb748d8f9ea, platforms=['tiktok']) -> brands/grissom/posts/2026-08-17.md
+[2026-08-06T15:01:21.711615Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-3weeks-countdown-2026-08-17.md
+[2026-08-06T15:01:21.711950Z] [ingest] [grissom] wrote: 2026-08-08 15:00 UTC (id=0474d2eb5375, platforms=['tiktok']) -> brands/grissom/posts/2026-08-08.md
+[2026-08-06T15:01:21.712095Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-cedar-hollow-aesthetic-2026-08-08.md
+[2026-08-06T15:01:21.712462Z] [ingest] [grissom] wrote: 2026-08-13 13:00 UTC (id=1957b8158a65, platforms=['tiktok']) -> brands/grissom/posts/2026-08-13.md
+[2026-08-06T15:01:21.712608Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-first-line-2026-08-13.md
+[2026-08-06T15:01:21.712971Z] [ingest] [grissom] wrote: 2026-08-18 03:00 UTC (id=89e03a860d32, platforms=['tiktok']) -> brands/grissom/posts/2026-08-18.md
+[2026-08-06T15:01:21.713122Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-grief-late-night-2026-08-17.md
+[2026-08-06T15:01:21.713240Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-launch-2026-08-03.md
+[2026-08-06T15:01:21.713596Z] [ingest] [grissom] wrote: 2026-08-11 13:00 UTC (id=6d718f34784d, platforms=['tiktok']) -> brands/grissom/posts/2026-08-11.md
+[2026-08-06T15:01:21.713738Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-meet-don-2026-08-11.md
+[2026-08-06T15:01:21.714074Z] [ingest] [grissom] wrote: 2026-08-15 16:00 UTC (id=8199aaffdc9a, platforms=['tiktok']) -> brands/grissom/posts/2026-08-15.md
+[2026-08-06T15:01:21.714217Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-moodboard-aug15-2026-08-15.md
+[2026-08-06T15:01:21.714330Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-nancy-wes-tease-2026-08-03.md
+[2026-08-06T15:01:21.714692Z] [ingest] [grissom] wrote: 2026-08-14 10:00 UTC (id=4338ea60867e, platforms=['tiktok']) -> brands/grissom/posts/2026-08-14.md
+[2026-08-06T15:01:21.714833Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-porch-scene-2026-08-14.md
+[2026-08-06T15:01:21.715148Z] [ingest] [grissom] wrote: 2026-08-07 13:00 UTC (id=69f7e549a2a2, platforms=['tiktok']) -> brands/grissom/posts/2026-08-07.md
+[2026-08-06T15:01:21.715247Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-preorder-live-2026-08-07.md
+[2026-08-06T15:01:21.715322Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-tropes-trench-coat-2026-08-03.md
+[2026-08-06T15:01:21.715679Z] [ingest] [grissom] wrote: 2026-08-10 16:00 UTC (id=0f2310c66037, platforms=['tiktok']) -> brands/grissom/posts/2026-08-10.md
+[2026-08-06T15:01:21.715815Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T150121Z__handy-hearts-tiktok-tropes-week-2026-08-10.md
+[2026-08-06T15:01:21.715876Z] [ingest] [grissom] summary: {'drafts': 36, 'blocks': 31, 'wrote': 16, 'skipped': 0, 'invalid': 15}
+[2026-08-06T15:01:21.716017Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T15:01:21.716066Z] [ingest] TOTAL: {'drafts': 38, 'blocks': 31, 'wrote': 16, 'skipped': 0, 'invalid': 15}
