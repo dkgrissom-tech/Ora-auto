@@ -337,3 +337,25 @@
 [2026-08-05T10:17:02.983080Z] [ingest] [grissom] summary: {'drafts': 5, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-05T10:17:02.983255Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-05T10:17:02.983324Z] [ingest] TOTAL: {'drafts': 7, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T02:44:48.762575Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-06T02:44:48.762973Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-06T02:44:48.763071Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-06T02:44:48.763128Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T02:44:48.763605Z] [ingest] [grissom] wrote: 2026-08-06 14:00 UTC (id=a5ae8c45a65d, platforms=['bluesky']) -> brands/grissom/posts/2026-08-06.md
+[2026-08-06T02:44:48.763734Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T024448Z__handy-hearts-bluesky-widow-ring-2026-08-04.md
+[2026-08-06T02:44:48.763836Z] [ingest] [grissom] empty draft: handy-hearts-instagram-carousel-2026-08-03.md
+[2026-08-06T02:44:48.763960Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-08-06T02:44:48.764032Z] [ingest] [grissom] SKIP: no platforms listed
+[2026-08-06T02:44:48.764154Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-08-06T02:44:48.764228Z] [ingest] [grissom] SKIP: no platforms listed
+[2026-08-06T02:44:48.764305Z] [ingest] [grissom] empty draft: handy-hearts-pinterest-pin-2026-08-03.md
+[2026-08-06T02:44:48.764519Z] [ingest] [grissom] wrote: 2026-08-06 19:00 UTC (id=e44aca25b8c3, platforms=['threads']) -> brands/grissom/posts/2026-08-06.md
+[2026-08-06T02:44:48.764616Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T024448Z__handy-hearts-threads-ensemble-2026-08-05.md
+[2026-08-06T02:44:48.764796Z] [ingest] [grissom] wrote: 2026-08-06 23:00 UTC (id=fed97e1418da, platforms=['threads']) -> brands/grissom/posts/2026-08-06.md
+[2026-08-06T02:44:48.764892Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T024448Z__handy-hearts-threads-widow-ring-2026-08-04.md
+[2026-08-06T02:44:48.764961Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-launch-2026-08-03.md
+[2026-08-06T02:44:48.765012Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-nancy-wes-tease-2026-08-03.md
+[2026-08-06T02:44:48.765059Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-tropes-trench-coat-2026-08-03.md
+[2026-08-06T02:44:48.765089Z] [ingest] [grissom] summary: {'drafts': 10, 'blocks': 7, 'wrote': 3, 'skipped': 0, 'invalid': 4}
+[2026-08-06T02:44:48.765221Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T02:44:48.765271Z] [ingest] TOTAL: {'drafts': 12, 'blocks': 7, 'wrote': 3, 'skipped': 0, 'invalid': 4}
