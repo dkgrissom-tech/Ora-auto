@@ -2,7 +2,8 @@
 kind: post
 brand: grissom
 platforms: [threads]
-scheduled: 2026-08-07T14:00:00-05:00
+date: 2026-08-07
+time: 19:00
 filename: handy-hearts-threads-ensemble-2026-08-07.md
 ---
 
