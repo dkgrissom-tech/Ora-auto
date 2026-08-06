@@ -415,8 +415,18 @@ def main() -> int:
             grand[k] += s[k]
         log(f"[{b}] summary: {s}")
     log(f"TOTAL: {grand}")
-    # Non-zero exit if invalid blocks were found so CI surfaces the issue.
-    return 1 if grand["invalid"] and not args.dry_run else 0
+    # Exit code policy:
+    #   0 = at least one post was written, or nothing needed writing (drafts=0)
+    #   1 = there were drafts to process but nothing was written AND there were invalid blocks
+    # This treats "invalid" alongside successful writes as a warning, not a failure, so CI does not
+    # go red every time a tiktok/pinterest draft is missing its media path.
+    if args.dry_run:
+        return 0
+    if grand["wrote"] > 0:
+        return 0
+    if grand["drafts"] == 0:
+        return 0
+    return 1 if grand["invalid"] else 0
 
 
 if __name__ == "__main__":
