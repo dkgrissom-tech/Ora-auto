@@ -1,30 +1,26 @@
 ---
-kind: post
+kind: social
 brand: grissom
 platforms: [tiktok, instagram, pinterest]
 filename: handy-hearts-day1-announcement-2026-08-05.md
+video: brands/grissom/assets/handy-hearts-day1-announcement-2026-08-05.mp4
 ---
-
-# Handy Hearts is coming. 🛠️🤍
-
 Meet Don Rourke.
 
-Forty-two. Ex-Navy Seabee. The kind of man who fixes things with his
-hands because fixing them with his words never quite worked out.
+## Shot list
+1. HOOK (0-2s): Cover close-up, morning light through window
+2. BEAT (2-5s): Hands on tools, sawdust, wedding-ring detail
+3. BEAT (5-9s): Cedar Hollow porch, wide shot
+4. PAYOFF (9-12s): Cover reveal with title card
+5. CTA (12-15s): "Preorder Sept 8" text + link overlay
 
-He came back to Cedar Hollow to gut an old farmhouse and keep his head
-down. He did not plan on the widow next door — honey-blonde, green eyes,
-freckles across her nose — and a laugh she tries to hide like it costs
-her something.
+## Voiceover
+Meet Don Rourke.
 
-Grief does that. Makes you careful with the good things.
+## On-screen text
+- 0-2s: "Grief does not end. It changes shape."
+- 5s: Cedar Hollow, Oklahoma
+- 12s: Preorder — September 8
 
-*Handy Hearts*, a new Cedar Hollow romance from D.K. Grissom, drops
-September 8th.
-
-"Grief doesn't end. It changes shape."
-
-Preorder link in bio. 🍂
-
-#HandyHearts #DKGrissom #CedarHollow #SmallTownRomance #BookTok
-#SlowBurn #NewRelease #RomanceReads #ComingSoon
+## Music
+Sparse acoustic guitar, warm and melancholy — indie folk, no vocals
