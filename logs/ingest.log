@@ -381,3 +381,80 @@
 [2026-08-06T02:51:08.046848Z] [ingest] [grissom] summary: {'drafts': 10, 'blocks': 7, 'wrote': 3, 'skipped': 0, 'invalid': 4}
 [2026-08-06T02:51:08.047040Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-06T02:51:08.047113Z] [ingest] TOTAL: {'drafts': 12, 'blocks': 7, 'wrote': 3, 'skipped': 0, 'invalid': 4}
+[2026-08-06T04:49:38.337046Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-06T04:49:38.337795Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-06T04:49:38.337909Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-06T04:49:38.337980Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T04:49:38.339031Z] [ingest] [grissom] wrote: 2026-08-10 23:00 UTC (id=02136f7b8290, platforms=['bluesky']) -> brands/grissom/posts/2026-08-10.md
+[2026-08-06T04:49:38.339218Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260806T044938Z__grissom-bluesky-2026-08-10.md
+[2026-08-06T04:49:38.339528Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.339662Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.339779Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.339905Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340026Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340137Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340271Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340392Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340513Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340644Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340767Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.340885Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341001Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341115Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341251Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341350Z] [ingest] [grissom] empty draft: handy-hearts-instagram-carousel-2026-08-03.md
+[2026-08-06T04:49:38.341461Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341576Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341688Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341829Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.341915Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342044Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342126Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342274Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342354Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342479Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342556Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342678Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342755Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.342888Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343013Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343089Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343232Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343308Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343437Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343513Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343640Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343716Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343839Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.343915Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344039Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344183Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344265Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344357Z] [ingest] [grissom] empty draft: handy-hearts-pinterest-pin-2026-08-03.md
+[2026-08-06T04:49:38.344479Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344556Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344654Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344770Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344876Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.344976Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345074Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345193Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345297Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345392Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345486Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345581Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345691Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345794Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.345903Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346024Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346115Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-launch-2026-08-03.md
+[2026-08-06T04:49:38.346247Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346355Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346439Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-nancy-wes-tease-2026-08-03.md
+[2026-08-06T04:49:38.346545Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346652Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346737Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-tropes-trench-coat-2026-08-03.md
+[2026-08-06T04:49:38.346841Z] [ingest] [grissom] SKIP: no open slot on 2026-08-06
+[2026-08-06T04:49:38.346906Z] [ingest] [grissom] summary: {'drafts': 57, 'blocks': 64, 'wrote': 1, 'skipped': 0, 'invalid': 63}
+[2026-08-06T04:49:38.347071Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-06T04:49:38.347130Z] [ingest] TOTAL: {'drafts': 59, 'blocks': 64, 'wrote': 1, 'skipped': 0, 'invalid': 63}
