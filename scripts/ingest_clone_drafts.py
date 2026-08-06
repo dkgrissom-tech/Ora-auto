@@ -21,7 +21,7 @@ Design rules
 - Every draft it consumes is moved to `clone_drafts/<brand>/_processed/`
   with the assigned id, so the Claude Project never re-emits the same post.
 - Honors the same brand policies as the scheduler
-  (TIKTOK_ALLOWED_BRANDS = {"ora"}).
+  (TIKTOK_ALLOWED_BRANDS = {"ora", "grissom"}).
 
 Draft file format (what the text clone writes)
 ----------------------------------------------
@@ -70,7 +70,7 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # Mirrors run_scheduler.py registry — keep in sync.
 BRANDS = ["ora", "grissom", "familybook"]
-TIKTOK_ALLOWED_BRANDS = {"ora"}
+TIKTOK_ALLOWED_BRANDS = {"ora", "grissom"}
 
 # Default posting slots per brand (UTC hours), used when a draft omits `time`.
 # 13/17/21 UTC == 08/12/16 CDT — matches your Daily Launch Packet cadence.

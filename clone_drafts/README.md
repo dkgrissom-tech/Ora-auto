@@ -54,7 +54,7 @@ https://meetora-app.pplx.app
 
 ### Rules ingest enforces (silent fail with log line, never crash)
 
-- TikTok is only allowed for `ora`. If Grissom/Familybook drafts include tiktok,
+- TikTok is allowed for `ora` and `grissom`. If Familybook drafts include tiktok,
   it is dropped from the platforms list.
 - Instagram / Pinterest without `image` → skipped.
 - TikTok without `video` → skipped.
