@@ -186,14 +186,34 @@ def validate_and_normalize(brand: str, block: dict, existing_hours_by_date) -> O
         log(f"[{brand}] SKIP: empty body")
         return None
 
-    # date
-    date_str = meta.get("date") or _utcnow().strftime("%Y-%m-%d")
+    # date + time
+    # Accept `scheduled: 2026-08-07T19:00:00-05:00` (ISO 8601, any tz) as a
+    # single source of truth. If absent, fall back to `date:` + `time:` split fields.
+    date_str = meta.get("date")
+    time_str = meta.get("time")
+    scheduled = meta.get("scheduled")
+    if scheduled and not (date_str and time_str):
+        try:
+            # Normalize "Z" to "+00:00" for fromisoformat
+            iso = scheduled.strip().replace("Z", "+00:00")
+            parsed = dt.datetime.fromisoformat(iso)
+            if parsed.tzinfo is None:
+                # Assume UTC if naive
+                parsed = parsed.replace(tzinfo=dt.timezone.utc)
+            # Convert to UTC — brands/posts/YYYY-MM-DD.md is UTC-indexed
+            parsed_utc = parsed.astimezone(dt.timezone.utc)
+            date_str = date_str or parsed_utc.strftime("%Y-%m-%d")
+            time_str = time_str or parsed_utc.strftime("%H:%M")
+        except (ValueError, TypeError) as e:
+            log(f"[{brand}] SKIP: bad scheduled '{scheduled}' ({e})")
+            return None
+
+    if not date_str:
+        date_str = _utcnow().strftime("%Y-%m-%d")
     if not DATE_RE.match(date_str):
         log(f"[{brand}] SKIP: bad date '{date_str}'")
         return None
 
-    # time
-    time_str = meta.get("time")
     if time_str and not TIME_RE.match(time_str):
         log(f"[{brand}] SKIP: bad time '{time_str}'")
         return None
