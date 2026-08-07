@@ -168,3 +168,12 @@
 [2026-08-06T00:59:01.531327Z] [email] [grissom] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-06T00:59:01.531483Z] [email] [familybook] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-06T00:59:01.531576Z] [email] TOTAL: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-07T03:33:35.988154Z] [email] Email tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-07T03:33:35.988444Z] [email] [ora] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-07T03:33:38.523613Z] [email] [grissom] created campaign id=195112328323138690 subject='Three weeks until Cedar Hollow'
+[2026-08-07T03:33:38.959486Z] [email] [grissom] sent campaign id=195112328323138690
+[2026-08-07T03:33:41.214546Z] [email] [grissom] created campaign id=195112331240277356 subject='Read Handy Hearts before everyone else (ARC readers wanted)'
+[2026-08-07T03:33:41.702142Z] [email] [grissom] sent campaign id=195112331240277356
+[2026-08-07T03:33:41.702660Z] [email] [grissom] summary: {'drafts': 2, 'sent': 2, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-07T03:33:41.702820Z] [email] [familybook] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-07T03:33:41.702924Z] [email] TOTAL: {'drafts': 2, 'sent': 2, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
