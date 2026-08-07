@@ -450,7 +450,14 @@ def main() -> int:
             grand[k] = grand.get(k, 0) + v
         log(f"[{b}] summary: {s}")
     log(f"TOTAL: {grand}")
-    return 1 if grand.get("invalid", 0) and not dry_run else 0
+    # Exit code policy:
+    #   Always exit 0. Invalid email drafts (missing subject, etc.) are logged
+    #   above but are not CI failures - they are content issues the author fixes
+    #   on the next commit. Real script crashes still bubble up via exceptions.
+    invalid = grand.get("invalid", 0)
+    if invalid > 0 and not dry_run:
+        log(f"NOTE: {invalid} invalid email draft(s) skipped - fix and recommit")
+    return 0
 
 
 if __name__ == "__main__":

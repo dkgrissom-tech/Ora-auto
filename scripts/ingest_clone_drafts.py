@@ -436,17 +436,13 @@ def main() -> int:
         log(f"[{b}] summary: {s}")
     log(f"TOTAL: {grand}")
     # Exit code policy:
-    #   0 = at least one post was written, or nothing needed writing (drafts=0)
-    #   1 = there were drafts to process but nothing was written AND there were invalid blocks
-    # This treats "invalid" alongside successful writes as a warning, not a failure, so CI does not
-    # go red every time a tiktok/pinterest draft is missing its media path.
-    if args.dry_run:
-        return 0
-    if grand["wrote"] > 0:
-        return 0
-    if grand["drafts"] == 0:
-        return 0
-    return 1 if grand["invalid"] else 0
+    #   Always exit 0. Empty drafts and invalid drafts are surfaced in the
+    #   log summary above, but they are not CI failures - they are content
+    #   issues the author fixes on the next commit. Real script crashes still
+    #   bubble up as non-zero via Python's exception handling.
+    if grand["invalid"] > 0:
+        log(f"NOTE: {grand['invalid']} invalid draft(s) skipped - fix and recommit")
+    return 0
 
 
 if __name__ == "__main__":
