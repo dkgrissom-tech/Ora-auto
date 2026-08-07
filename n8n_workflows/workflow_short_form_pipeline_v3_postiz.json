@@ -1,0 +1,678 @@
+{
+  "name": "Short-Form Content Pipeline v3 (Postiz / brands posts)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "25 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "sf-trigger",
+      "name": "Every Hour :25 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -380,
+        300
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sf-pause-c",
+              "leftValue": "={{ ($env.PAUSE_ALL || 'true').toLowerCase() }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sf-pause",
+      "name": "PAUSE_ALL Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/integrations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sf-channels",
+      "name": "Postiz: List Channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// BRANDS from run_scheduler.py. There is no 'grissomshop' folder in the repo even\n// though the weekend brief lists it as a brand - unresolved, so it is excluded.\nconst today = new Date().toISOString().slice(0, 10);   // UTC, matches the Action\nreturn ['ora', 'grissom', 'familybook'].map((brand) => ({\n  json: { brand, today, file: `brands/${brand}/posts/${today}.md` },\n}));"
+      },
+      "id": "sf-brands",
+      "name": "List Brands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.file }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.raw"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "raw",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "sf-fetch",
+      "name": "Fetch Today's Post File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mirrors parse_today() in scripts/run_scheduler.py exactly.\nconst RAW = 'https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/';\nconst nowHour = new Date().getUTCHours();\n\n// X is manual-only by policy in run_scheduler.py, so it is deliberately NOT\n// enabled here. tiktok/youtube are video and belong to the video pipeline.\nconst POSTIZ_OK = ['bluesky', 'threads', 'instagram', 'pinterest', 'linkedin', 'mastodon'];\nconst POLICY_SKIP = { x: 'X is manual-only by policy', twitter: 'X is manual-only by policy',\n                      tiktok: 'video - handled by the video pipeline',\n                      youtube: 'video - handled by the video pipeline' };\n\n// The HTTP node returns text, so it emits only { raw }. brand/file are recovered by\n// index: one request per 'List Brands' item, in order.\nconst brandCtx = $('List Brands').all().map((b) => b.json);\nconst items = $input.all();\nconst out = [];\nfor (let idx = 0; idx < items.length; idx++) {\n  const item = items[idx];\n  const ctx = brandCtx[idx] || {};\n  const brand = ctx.brand;\n  const text = String(item.json.raw ?? item.json.data ?? '');\n  if (!text || text.includes('\"status\": \"404\"') || text.startsWith('{\"message\"')) continue;\n\n  const blocks = text.split('\\n## ').slice(1);\n  for (const b of blocks) {\n    const nl = b.indexOf('\\n');\n    const header = (nl === -1 ? b : b.slice(0, nl)).trim();\n    const bodySection = nl === -1 ? '' : b.slice(nl + 1);\n\n    const hh = parseInt(header.split(':')[0], 10);\n    if (Number.isNaN(hh)) continue;          // same as the Action's ValueError skip\n    if (hh !== nowHour) continue;            // only this hour's blocks fire\n\n    const meta = {};\n    const bodyLines = [];\n    let inBody = false, started = false;\n    for (const line of bodySection.split('\\n')) {\n      if (line.trim() === '---') {\n        if (!started) { started = true; inBody = true; continue; }\n        break;\n      }\n      if (!inBody) {\n        const i = line.indexOf(':');\n        if (i > -1) meta[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();\n      } else bodyLines.push(line);\n    }\n\n    const requested = String(meta.platforms || '')\n      .split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);\n    const platforms = requested.filter((p) => POSTIZ_OK.includes(p));\n    const skipped = requested.filter((p) => !POSTIZ_OK.includes(p))\n      .map((p) => `${p}: ${POLICY_SKIP[p] || 'unsupported'}`);\n\n    const media = meta.image || meta.video || '';\n    out.push({ json: {\n      brand: brand || 'unknown',\n      file: ctx.file, header, hour: hh,\n      platforms, policy_skipped: skipped,\n      body: bodyLines.join('\\n').trim(),\n      media_path: media,\n      media_url: media ? (media.startsWith('http') ? media : RAW + media) : '',\n      pinterest_title: meta.pinterest_title || '',\n      pinterest_url: meta.pinterest_url || '',\n    }});\n  }\n}\nreturn out;"
+      },
+      "id": "sf-parse",
+      "name": "Parse Scheduled Blocks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sf-due-c",
+              "leftValue": "={{ ($json.platforms || []).length > 0 && ($json.body || '').length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sf-due",
+      "name": "Any Due Posts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const i of $input.all()) {\n  const j = i.json;\n  console.log(`[shortform-skip] ${j.brand} ${j.header}: platforms=${JSON.stringify(j.platforms)} `\n    + `body=${(j.body || '').length}ch policy_skipped=${JSON.stringify(j.policy_skipped)}`);\n}\nreturn $input.all();"
+      },
+      "id": "sf-log-none",
+      "name": "Log Nothing To Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Channel IDs resolved at runtime. 'Postiz: List Channels' runs once before the\n// brand fan-out, so .first() is correct - it is one global list, not per-item data.\nconst d = $json;\nconst resp = $('Postiz: List Channels').first().json;\nconst list = Array.isArray(resp) ? resp\n           : Array.isArray(resp.integrations) ? resp.integrations\n           : Array.isArray(resp.data) ? resp.data : [];\n\nlet override = {};\ntry { override = JSON.parse($env.POSTIZ_CHANNEL_MAP || '{}'); } catch (e) {}\n\nconst brandWords = {\n  ora: ['ora'],\n  grissom: ['grissom', 'cedar hollow', 'dk grissom', 'd.k. grissom'],\n  familybook: ['family', 'familybook', 'family book'],\n};\nconst NEEDS_MEDIA = ['instagram', 'pinterest'];\nconst norm = (s) => String(s || '').toLowerCase();\nconst words = brandWords[d.brand] || [d.brand];\nconst hasMedia = Boolean(d.media_url);\n\nconst matched = [];\nconst problems = [...(d.policy_skipped || [])];\nfor (const platform of (d.platforms || [])) {\n  if (NEEDS_MEDIA.includes(platform) && !hasMedia) {\n    problems.push(`${platform}: needs an image, none in the block`);\n    continue;\n  }\n  const ov = override?.[d.brand]?.[platform];\n  if (ov) { matched.push({ platform, id: ov, name: '(override)' }); continue; }\n\n  const hits = list.filter((c) => {\n    const provider = norm(c.providerIdentifier || c.provider || c.identifier);\n    if (provider !== platform) return false;\n    if (c.disabled || c.refreshNeeded) return false;\n    return words.some((w) => norm(c.name).includes(w));\n  });\n  if (hits.length === 1) matched.push({ platform, id: hits[0].id, name: hits[0].name });\n  else if (hits.length > 1) problems.push(`${platform}: ${hits.length} channels match '${d.brand}' - set POSTIZ_CHANNEL_MAP`);\n  else problems.push(`${platform}: no enabled Postiz channel matching brand '${d.brand}'`);\n}\n\nreturn { json: { ...d, channels: matched, channel_problems: problems,\n                 has_channels: matched.length > 0,\n                 needs_media: matched.some((c) => NEEDS_MEDIA.includes(c.platform)),\n                 reason: problems.join('; ') } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "sf-match",
+      "name": "Match Brand Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sf-has-ch-c",
+              "leftValue": "={{ $json.has_channels }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sf-has-ch",
+      "name": "Channels Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const i of $input.all()) {\n  console.log(`[shortform-problem] ${i.json.brand} ${i.json.header}: ${i.json.reason}`);\n}\nreturn $input.all();"
+      },
+      "id": "sf-log-nochan",
+      "name": "Log Publish Problems",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sf-has-media-c",
+              "leftValue": "={{ ($json.media_url || '').startsWith('http') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sf-has-media",
+      "name": "Has Media?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/upload-from-url",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $json.media_url }) }}",
+        "options": {}
+      },
+      "id": "sf-upload",
+      "name": "Postiz: Upload Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        180
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Match Brand Channels').item.json;\nconst up = $json || {};\nconst id = up.id ?? up._id ?? null;\nconst path = up.path ?? up.url ?? null;\nif (!id || !path) {\n  return { json: { ...d, media: [], media_failed: true,\n                   reason: `Postiz upload failed for ${d.media_url}` } };\n}\nreturn { json: { ...d, media: [{ id, path }], media_failed: false } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "sf-wrap-media",
+      "name": "Attach Uploaded Media",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return { json: { ...$json, media: [], media_failed: false } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "sf-no-media",
+      "name": "No Media Needed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\nif (d.media_failed && d.needs_media) return { json: { ...d, skip_publish: true } };\n\n// Per-network ceilings so one long block is not rejected by the strictest network.\nconst LIMIT = { bluesky: 300, threads: 500, pinterest: 500, instagram: 2200,\n                linkedin: 3000, mastodon: 500 };\nconst clip = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '\\u2026');\n\nconst settingsFor = (platform) => {\n  if (platform === 'pinterest') {\n    // post_pinterest() in run_scheduler.py falls back to the bare brand name for the\n    // title and to '' for the link. 61 of the 66 Aug 4-18 pins carry neither meta key,\n    // so that fallback would ship pins titled 'grissom' with no destination. Derive\n    // instead: first bold/heading line of the body, then a per-brand default link.\n    const firstLine = String(d.body || '').split('\\n')\n      .map((l) => l.replace(/<!--.*?-->/g, '').trim())\n      .find((l) => l && !l.startsWith('#'));\n    const derived = String(firstLine || '')\n      .replace(/^#+\\s*/, '').replace(/\\*\\*/g, '').replace(/[*_`]/g, '')\n      .replace(/[\"\\u201c\\u201d]/g, '')\n      .replace(/\\s*\\|\\s*/g, ' - ').replace(/\\s{2,}/g, ' ').trim();\n    const s = { __type: 'pinterest',\n                title: clip(d.pinterest_title || derived || d.brand, 100) };\n    const link = d.pinterest_url\n      || $env[`${String(d.brand).toUpperCase()}_PINTEREST_LINK`]\n      || $env.POSTIZ_DEFAULT_LINK;\n    if (link) s.link = link;\n    const board = $env[`${String(d.brand).toUpperCase()}_PINTEREST_BOARD`] || $env.POSTIZ_PINTEREST_BOARD;\n    if (board) s.board = board;\n    return s;\n  }\n  if (platform === 'instagram') return { __type: 'instagram', post_type: 'post' };\n  if (platform === 'linkedin') return { __type: 'linkedin' };\n  return { __type: platform };\n};\n\nconst payload = {\n  type: 'now', date: new Date().toISOString(), shortLink: false, tags: [],\n  posts: d.channels.map((c) => ({\n    integration: { id: c.id },\n    value: [{ content: clip(d.body, LIMIT[c.platform] || 500), image: d.media }],\n    settings: settingsFor(c.platform),\n  })),\n};\nreturn { json: { ...d, skip_publish: false, postiz_payload: payload } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "sf-payload",
+      "name": "Build Postiz Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "sf-pub-ok-c",
+              "leftValue": "={{ $json.skip_publish }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sf-pub-ok",
+      "name": "Payload OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.postiz_payload) }}",
+        "options": {}
+      },
+      "id": "sf-post",
+      "name": "Postiz: Create Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nothing is renamed or deleted: brands/<brand>/posts/<date>.md holds many blocks\n// and the hour match is what prevents repeats - same contract as auto_post.yml.\nfor (const i of $input.all()) {\n  const d = $('Build Postiz Payload').item.json;\n  console.log(`[shortform-posted] ${d.brand} ${d.header} -> `\n    + d.channels.map((c) => `${c.platform}(${c.name})`).join(', '));\n}\nreturn $input.all();"
+      },
+      "id": "sf-log-done",
+      "name": "Log Published",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every Hour :25 UTC": {
+      "main": [
+        [
+          {
+            "node": "PAUSE_ALL Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PAUSE_ALL Gate": {
+      "main": [
+        [
+          {
+            "node": "Postiz: List Channels",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Postiz: List Channels": {
+      "main": [
+        [
+          {
+            "node": "List Brands",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Brands": {
+      "main": [
+        [
+          {
+            "node": "Fetch Today's Post File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Today's Post File": {
+      "main": [
+        [
+          {
+            "node": "Parse Scheduled Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Scheduled Blocks": {
+      "main": [
+        [
+          {
+            "node": "Any Due Posts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Due Posts?": {
+      "main": [
+        [
+          {
+            "node": "Match Brand Channels",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Nothing To Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Brand Channels": {
+      "main": [
+        [
+          {
+            "node": "Channels Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channels Found?": {
+      "main": [
+        [
+          {
+            "node": "Has Media?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Publish Problems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Media?": {
+      "main": [
+        [
+          {
+            "node": "Postiz: Upload Media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Media Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postiz: Upload Media": {
+      "main": [
+        [
+          {
+            "node": "Attach Uploaded Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Uploaded Media": {
+      "main": [
+        [
+          {
+            "node": "Build Postiz Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Media Needed": {
+      "main": [
+        [
+          {
+            "node": "Build Postiz Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Postiz Payload": {
+      "main": [
+        [
+          {
+            "node": "Payload OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payload OK?": {
+      "main": [
+        [
+          {
+            "node": "Postiz: Create Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Publish Problems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postiz: Create Post": {
+      "main": [
+        [
+          {
+            "node": "Log Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 3600,
+    "timezone": "America/Chicago"
+  },
+  "pinData": {}
+}

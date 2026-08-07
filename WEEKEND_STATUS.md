@@ -89,3 +89,56 @@ cannot work. **`video_source: manual` is unaffected** and is the whole pipeline 
   Grissom Shop needs folders creating or it isn't a pipeline brand yet. Unresolved.
 - Brief references `docs/n8n-env-var-checklist.md` as pre-existing. It did not exist
   until this commit.
+
+## Update — Aug 7, 6:40 PM CDT
+
+### Correction found: both short-form builds read the wrong folder
+v2 (and my first v3 attempt) read `clone_drafts/<brand>/*.md` as one-post-per-file
+with YAML frontmatter. That is the **intake** folder. `scripts/run_scheduler.py` —
+the code `auto_post.yml` actually runs — reads `brands/<brand>/posts/<UTC-today>.md`,
+splits on `## `, and fires a block when its UTC hour matches. Different format,
+different folder, comma-separated platforms instead of a bracketed list.
+
+Verified from source, not assumed: `run_scheduler.py:53-96` (`parse_today`),
+`:38` (`BRANDS`), `:306` (`TIKTOK_ALLOWED_BRANDS = {"ora"}`), `:324` (X is
+manual-only by policy).
+
+- Short-Form v3 rebuilt against the real queue: n8n id `zrpFOQ6UpMV0pHzh`,
+  19 nodes, inactive, trigger disabled, cron `25 * * * *`.
+- v2 renamed `_SUPERSEDED Short-Form v2 (read clone_drafts - wrong queue)`
+  (id `71gVEXd7G2OzyIUp`) so it cannot be activated by mistake.
+- No PUT/DELETE against the repo: dated files hold many posts, so marking one
+  posted would corrupt the day. Hour matching prevents repeats, same as the Action.
+- X stays manual-only and TikTok/YouTube stay with the video pipeline. Assertions
+  in the builder enforce both.
+
+### Dry-tested against real data
+Ran the parser, channel matcher and payload builder locally under `node` over all
+24 UTC hours against the actual `brands/grissom/posts/2026-08-08.md`: 6 posts would
+publish, 1 block correctly refused (tiktok-only, routed to the video pipeline),
+disabled Postiz channels excluded, 404 for brands with no file handled as normal.
+
+### Content gap found
+61 of the 66 Pinterest pins scheduled Aug 4-18 have no `pinterest_title` and no
+`pinterest_url`. `post_pinterest()` would have titled them all `grissom` with no
+destination link. The pipeline now derives a title from the first body line and
+takes a link from `{BRAND}_PINTEREST_LINK` / `POSTIZ_DEFAULT_LINK`. The real fix is
+at the generator — noted in the Module 2 brief.
+
+### Queue depth (the actual marketing problem)
+| Brand | Day files | Runs through |
+|---|---|---|
+| grissom | 16 | 2026-08-18 |
+| ora | 8 | 2026-07-25 (dry 13 days) |
+| familybook | 1 | 2026-06-28 (dead) |
+
+Aug 4-18 platform mix: 66 pinterest, 14 threads, 10 bluesky, 9 tiktok,
+7 instagram, 3 linkedin. 73% Pinterest, one brand.
+
+### Module 2 handed off, not built
+`docs/CLAUDE_MODULE2_BRIEF.md` — brief for Claude/Twin covering both file formats,
+the three stale points in the original weekend brief, the grissomshop question,
+platform wiring, brand facts, and a 9-point definition of done.
+
+### New env vars
+`{BRAND}_PINTEREST_LINK` (optional), `POSTIZ_DEFAULT_LINK` (optional fallback).
