@@ -4,6 +4,7 @@ brand: grissom
 platforms: [mailerlite]
 scheduled: 2026-08-13T20:00:00-05:00
 filename: handy-hearts-email-arc-recruitment-2026-08-13.md
+subject: Read Handy Hearts before everyone else (ARC readers wanted)
 ---
 
 # Want to read Handy Hearts before everyone else?
@@ -32,7 +33,7 @@ Dana Whitfield has been grieving for fourteen months. She still wears
 her wedding ring. She makes bad lumber puns and feels guilty for
 laughing. She is not looking to be saved.
 
-Cedar Hollow, Tennessee has opinions about both of them.
+Cedar Hollow, Oklahoma has opinions about both of them.
 
 *Handy Hearts* is a slow burn. Real grief. Small town. No
 melodrama — just two careful people figuring out how to be in the

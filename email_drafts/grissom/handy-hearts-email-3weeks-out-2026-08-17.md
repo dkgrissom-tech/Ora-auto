@@ -4,6 +4,7 @@ brand: grissom
 platforms: [mailerlite]
 scheduled: 2026-08-17T18:00:00-05:00
 filename: handy-hearts-email-3weeks-out-2026-08-17.md
+subject: Three weeks until Cedar Hollow
 ---
 
 # Three weeks until Handy Hearts
