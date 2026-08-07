@@ -1,0 +1,1241 @@
+{
+  "name": "Video Content Pipeline v3 (Postiz / video_drafts)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-trigger",
+      "name": "Every Hour :15 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -360,
+        300
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-pause-gate-c",
+              "leftValue": "={{ String($env.PAUSE_ALL ?? 'true').toLowerCase() }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-pause-gate",
+      "name": "PAUSE_ALL Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: 'grissomshop' is not a brand in dkgrissom-tech/Ora-auto.\n// brands/ and clone_drafts/ contain exactly: ora, grissom, familybook.\n// FIX: video drafts live in their own tree so the :50 ingest job and the :05\n// auto_post job (which own clone_drafts/) can never double-handle them.\nconst brands = ['ora', 'grissom', 'familybook'];\nreturn brands.map(brand => ({ json: { brand, path: `video_drafts/${brand}` } }));"
+      },
+      "id": "node-brands",
+      "name": "List Brand Video Folders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-list-files",
+      "name": "List Video Draft Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: iterate every input item. $input.first() silently dropped 2 of 3 brands.\n// FIX: derive brand from the file's own path instead of re-reading node output 0.\n// Tolerates a 404 folder ({message:'Not Found'}) instead of throwing.\nconst out = [];\nfor (const item of $input.all()) {\n  const p = item.json;\n  let files = [];\n  if (Array.isArray(p)) files = p;\n  else if (Array.isArray(p.data)) files = p.data;\n  else if (p && p.name) files = [p];\n  for (const f of files) {\n    if (!f || typeof f.name !== 'string' || !f.path) continue;\n    if (f.type && f.type !== 'file') continue;              // skip _processed/ etc\n    if (!f.name.toLowerCase().endsWith('.md')) continue;\n    if (f.name.includes('.posted-')) continue;              // already published\n    if (f.name.includes('.skip.')) continue;                // manually retired\n    if (f.name.toLowerCase() === 'readme.md') continue;\n    const m = f.path.match(/video_drafts\\/([^/]+)\\//);\n    out.push({ json: {\n      brand: m ? m[1] : 'unknown',\n      filename: f.name,\n      download_url: f.download_url,\n      sha: f.sha,\n      path: f.path,\n    }});\n  }\n}\nreturn out;"
+      },
+      "id": "node-filter",
+      "name": "Filter Unposted Video Drafts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "raw"
+            }
+          }
+        }
+      },
+      "id": "node-fetch",
+      "name": "Fetch Video Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs once PER ITEM, so every draft is parsed (was $input.first() = 1/hour).\n// FIX: read the raw text field. The old code JSON.stringify()'d the response\n// object, escaping every newline so the frontmatter regex could never match.\nconst meta = $('Filter Unposted Video Drafts').item.json;\nconst raw = typeof $json.raw === 'string' ? $json.raw\n          : typeof $json.data === 'string' ? $json.data\n          : typeof $json.body === 'string' ? $json.body : '';\n\nconst base = { filename: meta.filename, path: meta.path, sha: meta.sha, brand: meta.brand };\nconst bail = (reason, extra = {}) => ({ json: { ...base, skip: true, reason, ...extra } });\n\nif (!raw.trim()) return bail('empty or failed fetch');\n\nconst fm = raw.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---/);\nif (!fm) return bail('no frontmatter');\n\nconst get = (k) => {\n  const m = fm[1].match(new RegExp('^' + k + ':\\\\s*(.*)$', 'm'));\n  return m ? m[1].trim().replace(/^[\"']|[\"']$/g, '') : '';\n};\n\nconst video_source = (get('video_source') || 'manual').toLowerCase();\nconst video_url = get('video_url');\nconst video_type = (get('video_type') || 'short').toLowerCase();\nconst platforms = get('platforms').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\nconst caption = get('caption') || get('title') || '';\nconst brand = (get('brand') || meta.brand).toLowerCase();\n\nif (!platforms.length) return bail('no platforms in frontmatter');\nif (!caption.trim()) return bail('no caption/title in frontmatter');\n\n// FIX: default time was 23:00 UTC, which held every draft that omitted `time`\n// until nearly midnight. 12:00 matches the social pipeline's default.\nconst rawTime = get('time');\nconst time = /^\\d{1,2}:\\d{2}$/.test(rawTime) ? rawTime.padStart(5, '0') : '12:00';\nconst scheduled = get('scheduled') || get('date');\n\nif (scheduled) {\n  const at = new Date(`${scheduled}T${time}:00Z`);\n  if (isNaN(at.getTime())) return bail('unparseable scheduled date', { scheduled, time });\n  const diffMin = (at - new Date()) / 60000;\n  if (diffMin > 90) return bail('too early', { scheduled, time });\n  // FIX: v1 had no lower bound, so a draft dated last month posted immediately\n  // on the next tick. Anything more than 24h stale is stranded, not due.\n  if (diffMin < -1440) return bail('stale, more than 24h past due', { scheduled, time });\n}\n\nreturn { json: { ...base, brand, video_source, video_url, video_type, platforms,\n                 caption, raw, skip: false } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-parse",
+      "name": "Parse Video Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-ready-c",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-ready",
+      "name": "Ready to Publish?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1180,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Visible, non-failing record of expected skips (too early, no frontmatter, ...).\nfor (const i of $input.all()) {\n  console.log(`[video-skip] ${i.json.brand}/${i.json.filename}: ${i.json.reason}`);\n}\nreturn $input.all();"
+      },
+      "id": "node-log-skipped",
+      "name": "Log Skipped Drafts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "node-source-router-yt-studio",
+                    "leftValue": "={{ $json.video_source }}",
+                    "rightValue": "yt-studio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "yt-studio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "node-source-router-cig",
+                    "leftValue": "={{ $json.video_source }}",
+                    "rightValue": "content-ideas-generator",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cig"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "node-source-router-manual",
+                    "leftValue": "={{ $json.video_source }}",
+                    "rightValue": "manual",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "manual"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-source-router",
+      "name": "Route by Video Source",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.YT_STUDIO_API_URL || '').replace(/\\/$/, '') }}/api/video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.YT_STUDIO_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ script_text: $json.caption, template: 'scrolling-text-gradient', aspect: $json.video_type === 'short' ? '9:16' : '16:9' }) }}",
+        "options": {}
+      },
+      "id": "node-yt-studio-generate",
+      "name": "YT Studio Generate Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        60
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.CIG_API_URL || '').replace(/\\/$/, '') }}/api/generate-video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.CIG_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ beat_sheet: [{ scene_type: 'title', text: $json.caption, duration_sec: 5 }], aspect: $json.video_type === 'short' ? '9:16' : '16:9', music_mood: 'warm' }) }}",
+        "options": {}
+      },
+      "id": "node-cig-generate",
+      "name": "CIG Generate Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1620,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Manual source: video_url must already be in the frontmatter.\nconst d = $json;\nif (!d.video_url) {\n  return { json: { ...d, skip: true, reason: 'video_source: manual but no video_url' } };\n}\nreturn { json: { ...d, job_id: null, final_video_url: d.video_url } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-manual",
+      "name": "Manual Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: v1 read $('Route by Video Source').first() and Enterprise-only variables.\n// This uses .item + $env, and carries the draft context forward so nothing downstream has to reach back\n// across a Wait node (item pairing does not survive a resumed execution).\nconst draft = $('Parse Video Draft').item.json;\nconst r = $json || {};\nconst job_id = r.job_id ?? r.id ?? r.jobId ?? r.job ?? null;\n\n// Railway variables reach Code nodes through $env (Community edition has no Variables).\nconst base = draft.video_source === 'yt-studio'\n  ? ($env.YT_STUDIO_API_URL || '')\n  : ($env.CIG_API_URL || '');\n\nif (!job_id) {\n  return { json: { ...draft, skip: true, reason: 'generator returned no job id',\n                   generator_response: r } };\n}\nif (!base) {\n  return { json: { ...draft, skip: true,\n                   reason: `missing Railway variable for ${draft.video_source} API URL` } };\n}\n\nreturn { json: { ...draft, job_id,\n                 poll_url: `${base.replace(/\\/$/, '')}/api/video/${job_id}`,\n                 source: draft.video_source, attempt: 0 } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-prep-poll",
+      "name": "Prep Poll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "node-wait",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2060,
+        130
+      ],
+      "webhookId": "video-pipeline-poll-wait"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.poll_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $json.source === 'yt-studio' ? ($env.YT_STUDIO_API_KEY || '') : ($env.CIG_API_KEY || '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-poll",
+      "name": "Poll Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        130
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: v1 had no loop at all - Wait -> Poll -> Fan Out ran exactly once, so any\n// render slower than 30s published an unfinished (or missing) video URL.\n// This node classifies the poll and carries the context back around the loop.\nconst ctx = $('Prep Poll').item.json;\nconst r = $json || {};\nconst attempt = (ctx.attempt || 0) + $runIndex + 1;\n\nconst status = String(r.status ?? r.state ?? '').toLowerCase();\nconst url = r.video_url ?? r.url ?? r.output_url ?? r.download_url ?? (r.result && r.result.url) ?? null;\n\nconst failed = ['failed', 'error', 'cancelled', 'canceled'].includes(status);\nconst ready = !!url && (!status || ['done', 'ready', 'complete', 'completed', 'succeeded', 'success', 'finished'].includes(status));\n\nreturn { json: {\n  ...ctx,\n  attempt,\n  poll_status: status || 'unknown',\n  ready,\n  failed,\n  final_video_url: url,\n  // 30 polls x 30s = 15 min ceiling\n  timed_out: attempt >= 30,\n  poll_response: r,\n}};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-eval-poll",
+      "name": "Evaluate Poll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-video-ready-c",
+              "leftValue": "={{ $json.ready }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-video-ready",
+      "name": "Video Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2720,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-keep-polling-c",
+              "leftValue": "={{ $json.failed || $json.timed_out }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-keep-polling",
+      "name": "Keep Polling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2940,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const i of $input.all()) {\n  const j = i.json;\n  console.log(`[video-render-fail] ${j.brand}/${j.filename} job=${j.job_id} ` +\n              `status=${j.poll_status} attempts=${j.attempt} timed_out=${j.timed_out}`);\n}\nreturn $input.all();"
+      },
+      "id": "node-log-render-fail",
+      "name": "Log Render Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Channel IDs are looked up at runtime, so none are hardcoded and nothing breaks\n// when a channel is reconnected. 'Postiz: List Channels' runs once per execution\n// before the brand fan-out, so .first() is correct here - it is one global list,\n// not per-item data.\nconst d = $json;\nconst resp = $('Postiz: List Channels').first().json;\nconst list = Array.isArray(resp) ? resp\n           : Array.isArray(resp.integrations) ? resp.integrations\n           : Array.isArray(resp.data) ? resp.data : [];\n\n// Optional explicit override, e.g.\n// POSTIZ_CHANNEL_MAP={\"ora\":{\"tiktok\":\"abc\",\"youtube\":\"def\"},\"grissom\":{...}}\nlet override = {};\ntry { override = JSON.parse($env.POSTIZ_CHANNEL_MAP || '{}'); } catch (e) {}\n\n// Brand -> the words that identify that brand's channel names in Postiz.\nconst brandWords = {\n  ora: ['ora'],\n  grissom: ['grissom', 'cedar hollow', 'dk grissom', 'd.k. grissom'],\n  familybook: ['family', 'familybook', 'family book'],\n};\n\nconst norm = (s) => String(s || '').toLowerCase();\nconst words = brandWords[d.brand] || [d.brand];\n\nconst matched = [];\nconst unmatched = [];\nfor (const platform of (d.platforms || [])) {\n  const fromOverride = override?.[d.brand]?.[platform];\n  if (fromOverride) { matched.push({ platform, id: fromOverride, name: '(override)' }); continue; }\n\n  const hits = list.filter((c) => {\n    const provider = norm(c.providerIdentifier || c.provider || c.identifier);\n    if (provider !== platform) return false;\n    if (c.disabled || c.refreshNeeded) return false;\n    const name = norm(c.name);\n    return words.some((w) => name.includes(w));\n  });\n\n  if (hits.length === 1) matched.push({ platform, id: hits[0].id, name: hits[0].name });\n  else if (hits.length > 1) unmatched.push(`${platform}: ${hits.length} channels match brand '${d.brand}' - set POSTIZ_CHANNEL_MAP to disambiguate`);\n  else unmatched.push(`${platform}: no enabled Postiz channel whose name matches brand '${d.brand}'`);\n}\n\nreturn { json: { ...d, channels: matched, channel_problems: unmatched,\n                 has_channels: matched.length > 0,\n                 reason: unmatched.join('; ') } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-match-channels",
+      "name": "Match Brand Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3160,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-has-channels-c",
+              "leftValue": "={{ $json.has_channels }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-has-channels",
+      "name": "Channels Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3380,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const i of $input.all()) {\n  console.log(`[video-no-channel] ${i.json.brand}/${i.json.filename}: ${i.json.reason}`);\n}\nreturn $input.all();"
+      },
+      "id": "node-log-no-channel",
+      "name": "Log Missing Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/upload-from-url",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $json.final_video_url }) }}",
+        "options": {}
+      },
+      "id": "node-postiz-upload",
+      "name": "Postiz: Upload From URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3600,
+        130
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// One request covers every platform for this draft, so a 3-platform draft is one\n// API call rather than three. Postiz caps create-post at 90 requests/hour.\nconst d = $('Match Brand Channels').item.json;\nconst media = $json || {};\nconst id = media.id ?? media._id ?? null;\nconst path = media.path ?? media.url ?? null;\n\nif (!id || !path) {\n  return { json: { ...d, skip: true, reason: 'Postiz upload returned no media id/path',\n                   upload_response: media } };\n}\n\nconst image = [{ id, path }];\nconst title = String(d.caption || '').slice(0, 100);\nconst content = String(d.caption || '').slice(0, 2200);\n\nconst settingsFor = (platform) => {\n  if (platform === 'youtube') return {\n    __type: 'youtube', title,\n    type: d.video_type === 'short' ? 'short' : 'public',\n    selfDeclaredMadeForKids: 'false', tags: [],\n  };\n  if (platform === 'tiktok') return {\n    __type: 'tiktok', privacy_level: 'PUBLIC_TO_EVERYONE',\n    duet: false, stitch: false, comment: true, autoAddMusic: 'no',\n    brand_content_toggle: 'no', brand_organic_toggle: 'no',\n    content_posting_method: 'DIRECT_POST',\n  };\n  if (platform === 'instagram') return { __type: 'instagram', post_type: 'reel' };\n  return { __type: platform };\n};\n\nconst payload = {\n  type: 'now',\n  date: new Date().toISOString(),\n  shortLink: false,\n  tags: [],\n  posts: d.channels.map((c) => ({\n    integration: { id: c.id },\n    value: [{ content, image }],\n    settings: settingsFor(c.platform),\n  })),\n};\n\nreturn { json: { ...d, media: image, postiz_payload: payload } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-build-payload",
+      "name": "Build Postiz Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3820,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.postiz_payload) }}",
+        "options": {}
+      },
+      "id": "node-postiz-post",
+      "name": "Postiz: Create Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4040,
+        130
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: v1 never marked anything posted, so 'Filter Unposted Video Drafts' handed\n// the same draft back every hour and would repost it forever.\nconst d = $('Match Brand Channels').item.json;\nconst stamp = new Date().toISOString().slice(0, 10);\nreturn { json: {\n  brand: d.brand,\n  filename: d.filename,\n  path: d.path,\n  sha: d.sha,\n  channels: d.channels,\n  posted_path: String(d.path).replace(/\\.md$/, `.posted-${stamp}.md`),\n  content_b64: Buffer.from(d.raw || '', 'utf8').toString('base64'),\n  postiz_response: $json,\n}};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-stamp-posted",
+      "name": "Stamp Draft Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4260,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "path",
+        "options": {}
+      },
+      "id": "node-dedupe-posted",
+      "name": "One Marker Per Draft",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 1.1,
+      "position": [
+        4480,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.posted_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: 'chore(video): mark ' + $json.filename + ' posted [skip ci]', content: $json.content_b64 }) }}",
+        "options": {}
+      },
+      "id": "node-archive-draft",
+      "name": "Write .posted Marker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4700,
+        130
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $('One Marker Per Draft').item.json.path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: 'chore(video): remove published draft [skip ci]', sha: $('One Marker Per Draft').item.json.sha }) }}",
+        "options": {}
+      },
+      "id": "node-delete-draft",
+      "name": "Delete Original Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4920,
+        130
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.POSTIZ_API_URL || '').replace(/\\/$/, '') }}/api/public/v1/integrations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.POSTIZ_API_KEY || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-postiz-channels",
+      "name": "Postiz: List Channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -140,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "node-media-ok-c",
+              "leftValue": "={{ $json.skip === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-media-ok",
+      "name": "Media Uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3930,
+        130
+      ]
+    }
+  ],
+  "connections": {
+    "Every Hour :15 UTC": {
+      "main": [
+        [
+          {
+            "node": "PAUSE_ALL Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PAUSE_ALL Gate": {
+      "main": [
+        [
+          {
+            "node": "Postiz: List Channels",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Postiz: List Channels": {
+      "main": [
+        [
+          {
+            "node": "List Brand Video Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Brand Video Folders": {
+      "main": [
+        [
+          {
+            "node": "List Video Draft Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Video Draft Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Unposted Video Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Unposted Video Drafts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Video Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Video Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse Video Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Video Draft": {
+      "main": [
+        [
+          {
+            "node": "Ready to Publish?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ready to Publish?": {
+      "main": [
+        [
+          {
+            "node": "Route by Video Source",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skipped Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Video Source": {
+      "main": [
+        [
+          {
+            "node": "YT Studio Generate Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CIG Generate Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Manual Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skipped Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YT Studio Generate Video": {
+      "main": [
+        [
+          {
+            "node": "Prep Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CIG Generate Video": {
+      "main": [
+        [
+          {
+            "node": "Prep Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Poll": {
+      "main": [
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s": {
+      "main": [
+        [
+          {
+            "node": "Poll Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Video Status": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Poll": {
+      "main": [
+        [
+          {
+            "node": "Video Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Ready?": {
+      "main": [
+        [
+          {
+            "node": "Match Brand Channels",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Keep Polling?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Polling?": {
+      "main": [
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Render Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Video URL": {
+      "main": [
+        [
+          {
+            "node": "Match Brand Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Brand Channels": {
+      "main": [
+        [
+          {
+            "node": "Channels Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channels Found?": {
+      "main": [
+        [
+          {
+            "node": "Postiz: Upload From URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Missing Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postiz: Upload From URL": {
+      "main": [
+        [
+          {
+            "node": "Build Postiz Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Postiz Payload": {
+      "main": [
+        [
+          {
+            "node": "Media Uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media Uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Postiz: Create Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Missing Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postiz: Create Post": {
+      "main": [
+        [
+          {
+            "node": "Stamp Draft Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stamp Draft Context": {
+      "main": [
+        [
+          {
+            "node": "One Marker Per Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Marker Per Draft": {
+      "main": [
+        [
+          {
+            "node": "Write .posted Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write .posted Marker": {
+      "main": [
+        [
+          {
+            "node": "Delete Original Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 3600,
+    "timezone": "America/Chicago"
+  }
+}

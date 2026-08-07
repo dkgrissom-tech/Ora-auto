@@ -1,0 +1,1001 @@
+{
+  "name": "Short-Form Content Pipeline v2 (Community / clone_drafts)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "5 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-trigger",
+      "name": "Every Hour :05 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        300
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "pause-gate",
+              "leftValue": "={{ String($env.PAUSE_ALL || 'true').toLowerCase() }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-pause-gate",
+      "name": "PAUSE_ALL Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fan out one item per brand draft folder.\n// FIX: the old draft directory does not exist in dkgrissom-tech/Ora-auto - the\n// real directory is clone_drafts/. The shop brand is not configured either.\nconst brands = ['ora', 'grissom', 'familybook'];\nreturn brands.map(brand => ({ json: { brand, path: `clone_drafts/${brand}` } }));"
+      },
+      "id": "node-brands",
+      "name": "List Brand Folders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-list-files",
+      "name": "List Draft Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: iterate every input item (was $input.first(), which dropped 3 of 4 brands).\n// FIX: derive brand from the file's own path instead of correlating to node output 0.\n// Tolerates a missing folder (GitHub returns {message:'Not Found'}) without throwing.\nconst out = [];\nfor (const item of $input.all()) {\n  const p = item.json;\n  let files = [];\n  if (Array.isArray(p)) files = p;\n  else if (Array.isArray(p.data)) files = p.data;\n  else if (p && p.name) files = [p];\n  for (const f of files) {\n    if (!f || typeof f.name !== 'string' || !f.path) continue;\n    if (!f.name.toLowerCase().endsWith('.md')) continue;\n    if (f.name.includes('.posted-')) continue;      // already published\n    if (f.name.includes('.skip.')) continue;        // manually retired\n    if (f.name.toLowerCase() === 'readme.md') continue;\n    if (f.type && f.type !== 'file') continue;   // skip _processed/ and other dirs\n    const m = f.path.match(/clone_drafts\\/([^/]+)\\//);\n    out.push({ json: {\n      brand: m ? m[1] : 'unknown',\n      filename: f.name,\n      download_url: f.download_url,\n      sha: f.sha,\n      path: f.path,\n    }});\n  }\n}\nreturn out;"
+      },
+      "id": "node-filter",
+      "name": "Filter Unposted Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "raw"
+            }
+          }
+        }
+      },
+      "id": "node-fetch-content",
+      "name": "Fetch Draft Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Runs once PER ITEM so every draft is parsed (was $input.first() = 1 draft/hour).\n// FIX: read the raw text field. The old code did JSON.stringify() on the response\n// object, which escaped every newline and made the frontmatter regex never match.\nconst meta = $('Filter Unposted Files').item.json;\nconst raw = typeof $json.raw === 'string' ? $json.raw\n          : typeof $json.data === 'string' ? $json.data\n          : typeof $json.body === 'string' ? $json.body : '';\n\nconst bail = (reason, extra = {}) => ({ json: { skip: true, reason, filename: meta.filename, path: meta.path, ...extra } });\n\nif (!raw.trim()) return bail('empty or failed fetch');\n\nconst fm = raw.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---/);\nif (!fm) return bail('no frontmatter');\n\nconst get = (k) => {\n  const m = fm[1].match(new RegExp('^' + k + ':\\\\s*(.*)$', 'm'));\n  return m ? m[1].trim().replace(/^[\"']|[\"']$/g, '') : '';\n};\n\nconst platforms = get('platforms').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\nif (!platforms.length) return bail('no platforms in frontmatter');\n\nconst kind = (get('kind') || 'social').toLowerCase();\nif (kind === 'video') return bail('kind: video belongs to the Video Pipeline');\n\nconst scheduled = get('scheduled') || get('date');\nconst rawTime = get('time');\nconst time = /^\\d{1,2}:\\d{2}$/.test(rawTime) ? rawTime.padStart(5, '0') : '12:00';\n\nif (scheduled) {\n  const at = new Date(`${scheduled}T${time}:00Z`);\n  if (isNaN(at.getTime())) return bail('unparseable scheduled date', { scheduled });\n  const diffMin = (at.getTime() - Date.now()) / 60000;\n  if (diffMin > 90) return bail('too early', { scheduled, time, diffMin: Math.round(diffMin) });\n  if (diffMin < -1440) return bail('too old', { scheduled, time, diffMin: Math.round(diffMin) });\n}\n\nconst body = raw.replace(/^---\\r?\\n[\\s\\S]*?\\r?\\n---\\r?\\n?/, '').trim();\nif (!body) return bail('empty body');\n\nreturn { json: {\n  brand: (get('brand') || meta.brand).toLowerCase(),\n  platforms, body, kind,\n  scheduled, time,\n  filename: meta.filename, path: meta.path, sha: meta.sha,\n  skip: false,\n}};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-parse",
+      "name": "Parse Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "not-skipped",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-skip-check",
+      "name": "Skip Check (keep skip=false)",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One item per platform, across ALL drafts (was $input.first()).\nconst out = [];\nfor (const item of $input.all()) {\n  const d = item.json;\n  for (const platform of (d.platforms || [])) out.push({ json: { ...d, platform } });\n}\nreturn out;"
+      },
+      "id": "node-split-platforms",
+      "name": "Split by Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIX: the original hardcoded GRISSOM_* tokens for all four brands, which would\n// have posted Ora and Family Book drafts to the Grissom accounts. Resolve per brand\n// and refuse to post rather than post to the wrong account.\nconst V = (typeof $env !== 'undefined' && $env) ? $env : {};\nconst prefix = { ora: 'ORA', grissom: 'GRISSOM', familybook: 'FAMILYBOOK' }[$json.brand];\nconst out = { ...$json };\n\nif (!V.GITHUB_TOKEN) out.warnGithubToken = 'GITHUB_TOKEN variable is empty - GitHub calls are unauthenticated (60 req/hr)';\n\nif (!prefix) return { json: { ...out, platform: 'no_creds', credReason: `unknown brand: ${$json.brand}` } };\nout.prefix = prefix;\n\nconst need = {\n  bluesky:  { blueskyHandle: 'BLUESKY_HANDLE', blueskyPassword: 'BLUESKY_APP_PASSWORD' },\n  threads:  { threadsUserId: 'THREADS_USER_ID', metaToken: 'META_LONG_TOKEN' },\n  linkedin: { linkedinToken: 'LINKEDIN_TOKEN', linkedinPerson: 'LINKEDIN_PERSON_ID' },\n}[$json.platform];\n\nif (need) {\n  const missing = [];\n  for (const [field, varName] of Object.entries(need)) {\n    const val = V[`${prefix}_${varName}`];\n    out[field] = val ? String(val) : '';\n    if (!val) missing.push(`${prefix}_${varName}`);\n  }\n  if (missing.length) {\n    return { json: { ...out, platform: 'no_creds', credReason: `missing environment variables: ${missing.join(', ')}` } };\n  }\n}\n\nif (out.linkedinPerson) {\n  // FIX: checklist says LINKEDIN_PERSON_ID is already a full URN. The old node\n  // prepended the prefix unconditionally -> urn:li:person:urn:li:person:xxxx\n  out.linkedinUrn = out.linkedinPerson.startsWith('urn:li:person:')\n    ? out.linkedinPerson\n    : `urn:li:person:${out.linkedinPerson}`;\n}\nreturn { json: out };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-creds",
+      "name": "Resolve Brand Credentials",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-bluesky",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "bluesky",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "bluesky"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-threads",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "threads",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "threads"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-instagram",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "instagram",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "instagram"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-pinterest",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "pinterest",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pinterest"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-linkedin",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "linkedin",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "linkedin"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "r-email",
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "email",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "email"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "ignoreCase": true
+        }
+      },
+      "id": "node-router",
+      "name": "Route by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bsky.social/xrpc/com.atproto.server.createSession",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ identifier: $json.blueskyHandle, password: $json.blueskyPassword }) }}",
+        "options": {}
+      },
+      "id": "node-bsky-auth",
+      "name": "Bluesky Auth",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        -60
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grapheme-safe truncation to Bluesky's 300 limit (substring() splits emoji).\nconst d = $('Resolve Brand Credentials').item.json;\nconst chars = Array.from(d.body || '');\nconst text = chars.length > 300 ? Array.from(chars.slice(0, 297)).join('') + '...' : chars.join('');\nreturn { json: { ...d, postText: text } };",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-bsky-text",
+      "name": "Build Bluesky Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bsky.social/xrpc/com.atproto.repo.createRecord",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Bluesky Auth').item.json.accessJwt }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ repo: $('Bluesky Auth').item.json.did, collection: 'app.bsky.feed.post', record: { '$type': 'app.bsky.feed.post', text: $json.postText, createdAt: new Date().toISOString(), langs: ['en'] } }) }}",
+        "options": {}
+      },
+      "id": "node-bsky-post",
+      "name": "Bluesky Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        -60
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $json.threadsUserId }}/threads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.metaToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ media_type: 'TEXT', text: Array.from($json.body).slice(0, 500).join('') }) }}",
+        "options": {}
+      },
+      "id": "node-threads-create",
+      "name": "Threads Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "amount": 20,
+        "unit": "seconds"
+      },
+      "id": "node-threads-wait",
+      "name": "Wait 20s (container ready)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2500,
+        120
+      ],
+      "webhookId": "threads-container-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $('Resolve Brand Credentials').item.json.threadsUserId }}/threads_publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Resolve Brand Credentials').item.json.metaToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ creation_id: $('Threads Create Container').item.json.id }) }}",
+        "options": {}
+      },
+      "id": "node-threads-publish",
+      "name": "Threads Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Terminal branch: this platform needs an image. The draft is NOT marked posted,\n// so it retries hourly until the 'too old' window (24h) ages it out.\nconst d = $json;\nreturn { json: { status: 'skipped', platform: d.platform, brand: d.brand,\n  filename: d.filename,\n  reason: `${d.platform} requires media - add an 'image:' field to the draft frontmatter and an upload node` }};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-instagram",
+      "name": "Instagram (needs media)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Terminal branch: this platform needs an image. The draft is NOT marked posted,\n// so it retries hourly until the 'too old' window (24h) ages it out.\nconst d = $json;\nreturn { json: { status: 'skipped', platform: d.platform, brand: d.brand,\n  filename: d.filename,\n  reason: `${d.platform} requires media - add an 'image:' field to the draft frontmatter and an upload node` }};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-pinterest",
+      "name": "Pinterest (needs media)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.linkedinToken }}"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ author: $json.linkedinUrn, lifecycleState: 'PUBLISHED', specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text: Array.from($json.body).slice(0, 2900).join('') }, shareMediaCategory: 'NONE' } }, visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' } }) }}",
+        "options": {}
+      },
+      "id": "node-linkedin",
+      "name": "LinkedIn Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2280,
+        540
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Email already ships via the send_clone_emails.yml GitHub Actions rail using\n// email_drafts/<brand>/. Not duplicated here to avoid double-sending campaigns.\nreturn { json: { status: 'skipped', platform: 'email', brand: $json.brand,\n  filename: $json.filename,\n  reason: 'email is handled by send_clone_emails.yml (email_drafts/<brand>/) - do not duplicate' }};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-email",
+      "name": "Email (handled elsewhere)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        660
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback: unknown platform name, or brand credentials were missing.\nreturn { json: { status: 'unhandled', brand: $json.brand, filename: $json.filename,\n  platform: $json.platform,\n  requested: $json.platforms, reason: $json.credReason || `no route for platform: ${$json.platform}` }};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-unhandled",
+      "name": "Unhandled / Missing Creds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the .posted- marker. Paired-item lookup works from any success branch.\nconst d = $('Resolve Brand Credentials').item.json;\nconst ts = new Date().toISOString().slice(0, 10);\nconst newName = `${d.filename.replace(/\\.md$/i, '')}.posted-${ts}.md`;\nconst newPath = d.path.replace(/[^/]+$/, newName);\n\nconst marker = [\n  '---',\n  `posted_at: ${new Date().toISOString()}`,\n  `brand: ${d.brand}`,\n  `platforms: ${(d.platforms || []).join(', ')}`,\n  `posted_via: ${d.platform}`,\n  `original: ${d.filename}`,\n  '---',\n  '',\n  d.body || '',\n].join('\\n');\n\nreturn { json: {\n  old_path: d.path, new_path: newPath, sha: d.sha,\n  filename: d.filename, newName, brand: d.brand, platform: d.platform,\n  commit_message: `posted(${d.brand}/${d.platform}): ${d.filename}`,\n  content_b64: Buffer.from(marker, 'utf8').toString('base64'),\n}};",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "node-prep-rename",
+      "name": "Prep Posted Marker",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2940,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.new_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.commit_message, content: $json.content_b64 }) }}",
+        "options": {}
+      },
+      "id": "node-create-marker",
+      "name": "Create .posted Marker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3160,
+        30
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $('Prep Posted Marker').item.json.old_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($env.GITHUB_TOKEN || '') }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "ora-auto-n8n"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: 'cleanup: ' + $('Prep Posted Marker').item.json.filename, sha: $('Prep Posted Marker').item.json.sha }) }}",
+        "options": {}
+      },
+      "id": "node-delete-old",
+      "name": "Delete Original Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        30
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Every Hour :05 UTC": {
+      "main": [
+        [
+          {
+            "node": "PAUSE_ALL Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PAUSE_ALL Gate": {
+      "main": [
+        [
+          {
+            "node": "List Brand Folders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "List Brand Folders": {
+      "main": [
+        [
+          {
+            "node": "List Draft Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Draft Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Unposted Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Unposted Files": {
+      "main": [
+        [
+          {
+            "node": "Fetch Draft Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Draft Content": {
+      "main": [
+        [
+          {
+            "node": "Parse Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Draft": {
+      "main": [
+        [
+          {
+            "node": "Skip Check (keep skip=false)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Check (keep skip=false)": {
+      "main": [
+        [
+          {
+            "node": "Split by Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split by Platform": {
+      "main": [
+        [
+          {
+            "node": "Resolve Brand Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Brand Credentials": {
+      "main": [
+        [
+          {
+            "node": "Route by Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Platform": {
+      "main": [
+        [
+          {
+            "node": "Bluesky Auth",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Threads Create Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instagram (needs media)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pinterest (needs media)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email (handled elsewhere)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unhandled / Missing Creds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bluesky Auth": {
+      "main": [
+        [
+          {
+            "node": "Build Bluesky Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Bluesky Text": {
+      "main": [
+        [
+          {
+            "node": "Bluesky Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bluesky Post": {
+      "main": [
+        [
+          {
+            "node": "Prep Posted Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threads Create Container": {
+      "main": [
+        [
+          {
+            "node": "Wait 20s (container ready)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 20s (container ready)": {
+      "main": [
+        [
+          {
+            "node": "Threads Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threads Publish": {
+      "main": [
+        [
+          {
+            "node": "Prep Posted Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Prep Posted Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Posted Marker": {
+      "main": [
+        [
+          {
+            "node": "Create .posted Marker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create .posted Marker": {
+      "main": [
+        [
+          {
+            "node": "Delete Original Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
