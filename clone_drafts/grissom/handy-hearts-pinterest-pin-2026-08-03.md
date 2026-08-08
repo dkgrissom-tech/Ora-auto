@@ -1,6 +1,6 @@
 # Handy Hearts — Pinterest Pin
 
-Cedar Hollow, Tennessee. A widow's collapsed porch. A quiet handyman who came here to disappear. And a slow-burn small-town romance about grief, second chances, and the way love doesn't replace what you lost — it just changes the shape of the space it lives in.
+Cedar Hollow, Oklahoma. A widow's collapsed porch. A quiet handyman who came here to disappear. And a slow-burn small-town romance about grief, second chances, and the way love doesn't replace what you lost — it just changes the shape of the space it lives in.
 
 HANDY HEARTS by D.K. Grissom — Book One of the Cedar Hollow Series. A ~55k short novel in the tradition of connected-world small-town romance. Grumpy/sunshine, age-gap-adjacent, closed-door-with-heat, HEA guaranteed.
 

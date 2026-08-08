@@ -1,0 +1,91 @@
+# Missing media audit — generated Aug 7 2026
+
+**82 scheduled posts reference media files that do not exist in the repo.**
+A missing asset is not a soft failure: `asset_url()` builds a raw.githubusercontent.com
+URL from the path, and Pinterest/Instagram reject the post when that URL 404s. These
+posts will fail at the API even though the code is correct.
+
+| Date | Brand | Platforms | Missing file |
+|---|---|---|---|
+| 2026-08-04 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug4-batch-pin1-she-still-wears-her-wedding-ring-2026-08-04.jpg` |
+| 2026-08-04 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug4-batch-pin2-the-porch-that-started-everything-2026-08-04.jpg` |
+| 2026-08-04 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug4-batch-pin3-he-fixes-things-with-his-hands-because-w-2026-08-04.jpg` |
+| 2026-08-04 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug4-batch-pin4-grief-does-not-end-it-changes-shape-2026-08-04.jpg` |
+| 2026-08-05 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug4-batch-pin5-small-town-old-porch-slow-burn-2026-08-04.jpg` |
+| 2026-08-05 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug5-batch-pin1-the-cedar-hollow-diner-where-every-story-2026-08-05.jpg` |
+| 2026-08-05 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug5-batch-pin2-in-cedar-hollow-you-cannot-keep-a-secret-2026-08-05.jpg` |
+| 2026-08-05 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug5-batch-pin3-small-towns-do-not-let-you-hide-2026-08-05.jpg` |
+| 2026-08-05 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug5-batch-pin4-coffee-quiet-and-a-cedar-hollow-morning-2026-08-05.jpg` |
+| 2026-08-06 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug5-batch-pin5-oklahoma-slow-2026-08-05.jpg` |
+| 2026-08-06 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug6-batch-pin1-all-the-tropes-in-handy-hearts-2026-08-06.jpg` |
+| 2026-08-06 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug6-batch-pin2-dk-grissom-2026-08-06.jpg` |
+| 2026-08-06 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug6-batch-pin3-a-romance-with-no-stupid-miscommunicatio-2026-08-06.jpg` |
+| 2026-08-06 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug6-batch-pin4-heroes-who-fix-things-with-their-hands-2026-08-06.jpg` |
+| 2026-08-07 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-reel-preorder-2026-08-07.jpg` |
+| 2026-08-07 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-preorder-live-2026-08-07.mp4` |
+| 2026-08-07 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug6-batch-pin5-slow-burn-that-actually-pays-off-2026-08-06.jpg` |
+| 2026-08-07 | grissom | pinterest | `brands/grissom/assets/hh-pin-preorder-batch-pin1-cover-reveal-handy-hearts-by-dk-grissom-2026-08-07.jpg` |
+| 2026-08-07 | grissom | pinterest | `brands/grissom/assets/hh-pin-preorder-batch-pin2-preorder-handy-hearts-out-september-8-20-2026-08-07.jpg` |
+| 2026-08-07 | grissom | pinterest | `brands/grissom/assets/hh-pin-preorder-batch-pin3-why-you-should-preorder-handy-hearts-now-2026-08-07.jpg` |
+| 2026-08-07 | grissom | pinterest | `brands/grissom/assets/hh-pin-preorder-batch-pin4-meet-don-and-dana-before-september-8-2026-08-07.jpg` |
+| 2026-08-08 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-cedar-hollow-aesthetic-2026-08-08.mp4` |
+| 2026-08-08 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug8-batch-pin1-cedar-hollow-morning-2026-08-08.jpg` |
+| 2026-08-08 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug8-batch-pin2-small-town-diner-2026-08-08.jpg` |
+| 2026-08-08 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug8-batch-pin3-old-porch-summer-storm-chapter-3-2026-08-08.jpg` |
+| 2026-08-08 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug8-batch-pin4-heroes-who-work-with-their-hands-2026-08-08.jpg` |
+| 2026-08-08 | grissom | pinterest | `brands/grissom/assets/hh-pin-preorder-batch-pin5-grief-does-not-end-it-changes-shape-2026-08-07.jpg` |
+| 2026-08-09 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-carousel-small-towns-heal-2026-08-08.jpg` |
+| 2026-08-09 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug8-batch-pin5-golden-hour-in-cedar-hollow-2026-08-08.jpg` |
+| 2026-08-09 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug9-sunday-pin1-sunday-reading-list-2026-08-09.jpg` |
+| 2026-08-09 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug9-sunday-pin2-the-quiet-before-the-feeling-2026-08-09.jpg` |
+| 2026-08-09 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug9-sunday-pin3-rest-day-in-cedar-hollow-2026-08-09.jpg` |
+| 2026-08-10 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-tropes-week-2026-08-10.mp4` |
+| 2026-08-10 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug10-tropes-pin1-forced-proximity-done-right-2026-08-10.jpg` |
+| 2026-08-10 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug10-tropes-pin2-widow-heroines-in-romance-2026-08-10.jpg` |
+| 2026-08-10 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug10-tropes-pin3-small-towns-that-mind-their-business-but-2026-08-10.jpg` |
+| 2026-08-10 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug10-tropes-pin4-ex-military-contractor-hero-2026-08-10.jpg` |
+| 2026-08-11 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-reel-don-seabee-2026-08-11.jpg` |
+| 2026-08-11 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-meet-don-2026-08-11.mp4` |
+| 2026-08-11 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug10-tropes-pin5-tropes-in-handy-hearts-2026-08-10.jpg` |
+| 2026-08-11 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug11-don-pin1-don-rourke-2026-08-11.jpg` |
+| 2026-08-11 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug11-don-pin2-sawdust-and-silence-2026-08-11.jpg` |
+| 2026-08-11 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug11-don-pin3-a-man-with-a-toolbox-and-no-small-talk-2026-08-11.jpg` |
+| 2026-08-11 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug11-don-pin4-navy-seabee-hero-2026-08-11.jpg` |
+| 2026-08-12 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-carousel-meet-dana-2026-08-12.jpg` |
+| 2026-08-12 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug11-don-pin5-the-quiet-heroes-are-the-best-ones-2026-08-11.jpg` |
+| 2026-08-12 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug12-dana-pin1-she-still-wears-her-ring-2026-08-12.jpg` |
+| 2026-08-12 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug12-dana-pin2-honey-blonde-green-eyes-freckles-2026-08-12.jpg` |
+| 2026-08-12 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug12-dana-pin3-grief-in-romance-done-right-2026-08-12.jpg` |
+| 2026-08-12 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug12-dana-pin4-a-heroine-who-makes-bad-lumber-puns-2026-08-12.jpg` |
+| 2026-08-13 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-carousel-arc-recruitment-2026-08-13.jpg` |
+| 2026-08-13 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-first-line-2026-08-13.mp4` |
+| 2026-08-13 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug12-dana-pin5-green-eyes-and-quiet-strength-2026-08-12.jpg` |
+| 2026-08-13 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug13-firstline-arc-pin1-first-line-of-handy-hearts-2026-08-13.jpg` |
+| 2026-08-13 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug13-firstline-arc-pin2-arc-readers-wanted-2026-08-13.jpg` |
+| 2026-08-13 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug13-firstline-arc-pin3-get-handy-hearts-before-launch-day-2026-08-13.jpg` |
+| 2026-08-13 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug13-firstline-arc-pin4-he-stopped-counting-2026-08-13.jpg` |
+| 2026-08-14 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-reel-porch-scene-2026-08-14.jpg` |
+| 2026-08-14 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-porch-scene-2026-08-14.mp4` |
+| 2026-08-14 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug13-firstline-arc-pin5-be-a-first-reader-2026-08-13.jpg` |
+| 2026-08-14 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug14-porch-storm-pin1-the-porch-scene-2026-08-14.jpg` |
+| 2026-08-14 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug14-porch-storm-pin2-rain-on-a-oklahoma-porch-2026-08-14.jpg` |
+| 2026-08-14 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug14-porch-storm-pin3-he-catches-her-2026-08-14.jpg` |
+| 2026-08-14 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug14-porch-storm-pin4-neither-of-them-says-anything-2026-08-14.jpg` |
+| 2026-08-15 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-moodboard-aug15-2026-08-15.mp4` |
+| 2026-08-15 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug14-porch-storm-pin5-porch-repair-as-romance-2026-08-14.jpg` |
+| 2026-08-15 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug15-blitz-pin1-handy-hearts-mood-board-2026-08-15.jpg` |
+| 2026-08-15 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug15-blitz-pin2-every-trope-in-handy-hearts-2026-08-15.jpg` |
+| 2026-08-15 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug15-blitz-pin3-don-and-dana-2026-08-15.jpg` |
+| 2026-08-15 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug15-blitz-pin4-cedar-hollow-aesthetic-2026-08-15.jpg` |
+| 2026-08-16 | grissom | instagram | `brands/grissom/assets/handy-hearts-ig-carousel-moodboard-aug15-2026-08-15.jpg` |
+| 2026-08-16 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug15-blitz-pin5-preorder-handy-hearts-before-september-8-2026-08-15.jpg` |
+| 2026-08-16 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug16-sunday-pin1-cedar-hollow-qa-2026-08-16.jpg` |
+| 2026-08-16 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug16-sunday-pin2-does-wes-get-his-own-book-2026-08-16.jpg` |
+| 2026-08-16 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug16-sunday-pin3-sunday-slow-2026-08-16.jpg` |
+| 2026-08-17 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-3weeks-countdown-2026-08-17.mp4` |
+| 2026-08-17 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug17-countdown-pin1-3-weeks-until-handy-hearts-2026-08-17.jpg` |
+| 2026-08-17 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug17-countdown-pin2-why-i-wrote-grief-this-way-2026-08-17.jpg` |
+| 2026-08-17 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug17-countdown-pin3-preorder-before-it-sells-out-2026-08-17.jpg` |
+| 2026-08-17 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug17-countdown-pin4-arc-spots-closing-soon-2026-08-17.jpg` |
+| 2026-08-18 | grissom | tiktok | `brands/grissom/assets/handy-hearts-tiktok-grief-late-night-2026-08-17.mp4` |
+| 2026-08-18 | grissom | pinterest | `brands/grissom/assets/hh-pin-aug17-countdown-pin5-almost-here-2026-08-17.jpg` |

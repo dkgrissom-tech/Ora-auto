@@ -6,7 +6,7 @@ scheduled: 2026-08-15T11:00:00-05:00
 filename: handy-hearts-tiktok-moodboard-aug15-2026-08-15.md
 video: brands/grissom/assets/handy-hearts-tiktok-moodboard-aug15-2026-08-15.mp4
 ---
-Cedar Hollow, Tennessee. Where the slow burns are real. September 8.
+Cedar Hollow, Oklahoma. Where the slow burns are real. September 8.
 🌿🛠️
 
 #HandyHearts #CedarHollow #BookTok #SmallTownRomance #Aesthetic
