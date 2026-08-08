@@ -1,0 +1,758 @@
+{
+  "name": "Video Content Pipeline v1",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["content", "auto-post", "video"],
+  "nodes": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Every Hour :15 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440030",
+      "name": "Manual Trigger Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "video-manual-trigger",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-video-pipeline",
+        "responseMode": "immediateResponse",
+        "responseData": "{ \"status\": \"triggered\", \"workflow\": \"video-pipeline\" }",
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440002",
+      "name": "PAUSE_ALL Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/PAUSE_ALL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": { "response": { "fullResponse": true, "neverError": true } }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "GITHUB_CRED_ID", "name": "GitHub PAT Header" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440003",
+      "name": "Is Paused?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "pause-check", "leftValue": "={{ $json.statusCode }}", "rightValue": 200, "operator": { "type": "number", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440004",
+      "name": "Paused - Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 500],
+      "parameters": {}
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440005",
+      "name": "Fetch GitHub Tree",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/dkgrissom-tech/Ora-auto/git/trees/main?recursive=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "GITHUB_CRED_ID", "name": "GitHub PAT Header" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440006",
+      "name": "Filter Video Drafts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "jsCode": "const tree = $input.first().json.tree || [];\nconst drafts = tree.filter(item =>\n  item.path &&\n  item.path.startsWith('video_drafts/') &&\n  item.path.endsWith('.md') &&\n  !item.path.includes('.posted-') &&\n  item.type === 'blob'\n);\nif (drafts.length === 0) return [{ json: { _empty: true } }];\nreturn drafts.map(d => ({ json: { path: d.path, sha: d.sha } }));"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440007",
+      "name": "Any Video Drafts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "empty-check", "leftValue": "={{ $json._empty }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440008",
+      "name": "No Drafts - Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 500],
+      "parameters": {}
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440009",
+      "name": "Split Into Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1560, 300],
+      "parameters": { "batchSize": 1, "options": {} }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440010",
+      "name": "Fetch Video Draft Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "GITHUB_CRED_ID", "name": "GitHub PAT Header" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440011",
+      "name": "Parse Video Frontmatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const raw = item.json;\n  const decoded = Buffer.from(raw.content || '', 'base64').toString('utf-8');\n  const fmMatch = decoded.match(/^---\\n([\\s\\S]*?)\\n---/);\n  if (!fmMatch) continue;\n\n  const fm = {};\n  for (const line of fmMatch[1].split('\\n')) {\n    const arrMatch = line.match(/^(\\w+):\\s*\\[(.+)\\]$/);\n    if (arrMatch) { fm[arrMatch[1]] = arrMatch[2].split(',').map(s => s.trim()); continue; }\n    const kvMatch = line.match(/^([\\w_]+):\\s*(.+)$/);\n    if (kvMatch) fm[kvMatch[1]] = kvMatch[2].trim();\n  }\n\n  const body = decoded.slice(fmMatch[0].length).trim();\n  const now = new Date();\n  const scheduled = new Date(fm.scheduled || '');\n  if (isNaN(scheduled.getTime())) continue;\n  const diffMs = scheduled - now;\n  if (diffMs > 90 * 60 * 1000) continue;\n\n  const platforms = Array.isArray(fm.platforms) ? fm.platforms : (fm.platforms ? [fm.platforms] : []);\n\n  items.push({\n    json: {\n      kind: fm.kind || 'video',\n      video_type: fm.video_type || 'short',\n      video_source: fm.video_source || 'manual',\n      video_url: fm.video_url || '',\n      caption: fm.caption || body,\n      topic: fm.topic || '',\n      hook: fm.hook || '',\n      template: fm.template || 'scrolling-text-gradient',\n      aspect: fm.aspect || '9:16',\n      music_mood: fm.music_mood || 'warm',\n      platforms,\n      scheduled: fm.scheduled,\n      brand: fm.brand || 'default',\n      filePath: raw.path,\n      fileSha: raw.sha,\n      rawContent: raw.content\n    }\n  });\n}\nreturn items.length > 0 ? items : [{ json: { _skip: true } }];"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440012",
+      "name": "Should Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip-check", "leftValue": "={{ $json._skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440013",
+      "name": "Needs Video Generation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2440, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "id": "has-url", "leftValue": "={{ $json.video_url }}", "rightValue": "", "operator": { "type": "string", "operation": "isEmpty" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440014",
+      "name": "Which Generator?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [2660, 200],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.video_source }}", "rightValue": "yt-studio", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "yt-studio"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.video_source }}", "rightValue": "content-ideas-generator", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "cig"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440015",
+      "name": "YT Studio - Generate Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.YT_STUDIO_API_URL }}/api/scripts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{ $vars.YT_STUDIO_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"topic\": {{ JSON.stringify($json.topic) }},\n  \"hook\": {{ JSON.stringify($json.hook) }},\n  \"template\": {{ JSON.stringify($json.template || 'hook-problem-shift-tools-close') }}\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": false } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440016",
+      "name": "YT Studio - Generate Voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3120, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.YT_STUDIO_API_URL }}/api/voice",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{ $vars.YT_STUDIO_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"script_text\": {{ JSON.stringify($json.script?.hook + ' ' + $json.script?.problem + ' ' + $json.script?.shift + ' ' + $json.script?.tools + ' ' + $json.script?.close) }},\n  \"voice_id\": {{ JSON.stringify($vars.ELEVENLABS_VOICE_ID || 'default') }}\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440017",
+      "name": "YT Studio - Submit Video Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3340, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.YT_STUDIO_API_URL }}/api/video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{ $vars.YT_STUDIO_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"script_text\": {{ JSON.stringify($('YT Studio - Generate Script').item.json.script?.hook + ' ' + $('YT Studio - Generate Script').item.json.script?.close) }},\n  \"audio_url\": {{ JSON.stringify($json.audio_url) }},\n  \"timestamps\": {{ JSON.stringify($json.timestamps || []) }},\n  \"template\": {{ JSON.stringify($('YT Studio - Generate Script').item.json.template || 'scrolling-text-gradient') }},\n  \"aspect\": {{ JSON.stringify($('Parse Video Frontmatter').item.json.aspect || '9:16') }}\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440018",
+      "name": "CIG - Submit Video Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 340],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CIG_API_URL }}/api/generate-video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{ $vars.CIG_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"beat_sheet\": [\n    { \"scene_type\": \"title\", \"text\": {{ JSON.stringify($json.hook || $json.caption?.slice(0,80) || 'Watch this') }}, \"duration_sec\": 3 },\n    { \"scene_type\": \"stat\", \"text\": {{ JSON.stringify($json.caption?.slice(80,200) || '') }}, \"duration_sec\": 4 },\n    { \"scene_type\": \"callout\", \"text\": {{ JSON.stringify($json.caption?.slice(200,350) || 'Follow for more') }}, \"duration_sec\": 3 }\n  ],\n  \"voice_id\": {{ JSON.stringify($vars.ELEVENLABS_VOICE_ID || 'default') }},\n  \"aspect\": {{ JSON.stringify($json.aspect || '9:16') }},\n  \"music_mood\": {{ JSON.stringify($json.music_mood || 'warm') }}\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440019",
+      "name": "Normalize Job ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3560, 220],
+      "parameters": {
+        "jsCode": "// Merge job_id from either generator path\nconst current = $input.first().json;\n// Try to get draft metadata from earlier in the chain\nconst draftData = $('Parse Video Frontmatter').item?.json || {};\nreturn [{\n  json: {\n    job_id: current.job_id || '',\n    video_source: draftData.video_source || 'yt-studio',\n    filePath: draftData.filePath || '',\n    fileSha: draftData.fileSha || '',\n    caption: draftData.caption || '',\n    platforms: draftData.platforms || [],\n    aspect: draftData.aspect || '9:16'\n  }\n}];"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440020",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [3780, 220],
+      "parameters": {
+        "unit": "seconds",
+        "amount": 30
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440021",
+      "name": "Poll Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4000, 220],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.video_source === 'yt-studio' ? $vars.YT_STUDIO_API_URL : $vars.CIG_API_URL }}/api/video/{{ $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{ $json.video_source === 'yt-studio' ? $vars.YT_STUDIO_API_KEY : $vars.CIG_API_KEY }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440022",
+      "name": "Video Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [4220, 220],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [{ "id": "status-check", "leftValue": "={{ $json.status }}", "rightValue": "done", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440023",
+      "name": "Loop Back - Wait More",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [4440, 340],
+      "notes": "n8n does not support native loops. If video is still rendering, this NoOp outputs nothing and the execution ends. For production polling, use n8n's Loop Over Items pattern or a webhook callback from the video API.",
+      "parameters": {}
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440024",
+      "name": "Prepare With Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4440, 140],
+      "parameters": {
+        "jsCode": "// Merge video_url into the draft metadata\nconst statusResult = $input.first().json;\nconst draftMeta = $('Normalize Job ID').item?.json || {};\nreturn [{\n  json: {\n    ...draftMeta,\n    video_url: statusResult.video_url || ''\n  }\n}];"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440025",
+      "name": "Already Has Video URL",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2440, 460],
+      "notes": "Draft already has a video_url — skip generation, go straight to platform posting.",
+      "parameters": {}
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440026",
+      "name": "Expand Per Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4660, 300],
+      "parameters": {
+        "jsCode": "const result = [];\nfor (const item of $input.all()) {\n  const platforms = item.json.platforms || [];\n  for (const platform of platforms) {\n    result.push({ json: { ...item.json, platform } });\n  }\n}\nreturn result;"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440027",
+      "name": "Route Video by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [4880, 300],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": { "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "youtube", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true, "outputKey": "youtube"
+            },
+            {
+              "conditions": { "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "tiktok", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true, "outputKey": "tiktok"
+            },
+            {
+              "conditions": { "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "instagram", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true, "outputKey": "instagram-reels"
+            },
+            {
+              "conditions": { "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "threads", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true, "outputKey": "threads-video"
+            },
+            {
+              "conditions": { "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" }, "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "linkedin", "operator": { "type": "string", "operation": "equals" } }] },
+              "renameOutput": true, "outputKey": "linkedin-video"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440028",
+      "name": "Post YouTube Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5100, 80],
+      "notes": "Requires YouTube OAuth. video_url must be accessible. For long-form, Google account needs API verification.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.YOUTUBE_OAUTH_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-Upload-Content-Type", "value": "video/*" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"snippet\": {\n    \"title\": {{ JSON.stringify($json.caption?.slice(0,100) || 'New Video') }},\n    \"description\": {{ JSON.stringify($json.caption || '') }},\n    \"tags\": [],\n    \"categoryId\": \"22\"\n  },\n  \"status\": { \"privacyStatus\": \"public\" }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440033",
+      "name": "Post TikTok Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5100, 220],
+      "notes": "TikTok Content Posting API — sandbox until approval. video_url must be publicly accessible.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.TIKTOK_ACCESS_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json; charset=UTF-8" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"post_info\": {\n    \"title\": {{ JSON.stringify($json.caption?.slice(0, 150) || '') }},\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\",\n    \"disable_duet\": false,\n    \"disable_comment\": false,\n    \"disable_stitch\": false\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": {{ JSON.stringify($json.video_url) }}\n  }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440034",
+      "name": "Post Instagram Reels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5100, 360],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/{{ $vars.GRISSOM_IG_USER_ID }}/media",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "media_type", "value": "REELS" },
+            { "name": "video_url", "value": "={{ $json.video_url }}" },
+            { "name": "caption", "value": "={{ $json.caption?.slice(0, 2200) }}" },
+            { "name": "share_to_feed", "value": "true" },
+            { "name": "access_token", "value": "={{ $vars.GRISSOM_META_LONG_TOKEN }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440035",
+      "name": "Post Threads Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5100, 500],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $vars.GRISSOM_THREADS_USER_ID }}/threads",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "media_type", "value": "VIDEO" },
+            { "name": "video_url", "value": "={{ $json.video_url }}" },
+            { "name": "text", "value": "={{ $json.caption?.slice(0, 500) }}" },
+            { "name": "access_token", "value": "={{ $vars.GRISSOM_META_LONG_TOKEN }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440036",
+      "name": "Post LinkedIn Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5100, 640],
+      "notes": "LinkedIn video requires a 2-step upload (register asset, then upload). This initiates the registration.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/assets?action=registerUpload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.ORA_LINKEDIN_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"registerUploadRequest\": {\n    \"recipes\": [\"urn:li:digitalmediaRecipe:feedshare-video\"],\n    \"owner\": \"urn:li:person:{{ $vars.ORA_LINKEDIN_PERSON_ID }}\",\n    \"serviceRelationships\": [{ \"relationshipType\": \"OWNER\", \"identifier\": \"urn:li:userGeneratedContent\" }]\n  }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440029",
+      "name": "Collect Video Post Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [5320, 360],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655655031",
+      "name": "Mark Video as Posted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5540, 360],
+      "parameters": {
+        "jsCode": "const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);\nconst meta = $('Expand Per Platform').item?.json || {};\nconst oldPath = meta.filePath || '';\nconst newPath = oldPath.replace('.md', `.posted-${ts}.md`);\nreturn [{ json: { oldPath, newPath, fileSha: meta.fileSha } }];"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440032",
+      "name": "Create Posted Marker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5760, 360],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.newPath }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"message\": \"feat: mark video posted {{ $json.newPath }}\",\n  \"content\": {{ JSON.stringify(Buffer.from('posted').toString('base64')) }},\n  \"committer\": { \"name\": \"n8n-bot\", \"email\": \"bot@grissompress.com\" }\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "GITHUB_CRED_ID", "name": "GitHub PAT Header" }
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655550037",
+      "name": "Delete Original Video Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [5980, 360],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.oldPath }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"message\": \"feat: remove video draft after posting\",\n  \"sha\": \"{{ $json.fileSha }}\",\n  \"committer\": { \"name\": \"n8n-bot\", \"email\": \"bot@grissompress.com\" }\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "GITHUB_CRED_ID", "name": "GitHub PAT Header" }
+      }
+    }
+  ],
+  "connections": {
+    "Every Hour :15 UTC": {
+      "main": [[{ "node": "PAUSE_ALL Check", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger Webhook": {
+      "main": [[{ "node": "PAUSE_ALL Check", "type": "main", "index": 0 }]]
+    },
+    "PAUSE_ALL Check": {
+      "main": [[{ "node": "Is Paused?", "type": "main", "index": 0 }]]
+    },
+    "Is Paused?": {
+      "main": [
+        [{ "node": "Paused - Stop", "type": "main", "index": 0 }],
+        [{ "node": "Fetch GitHub Tree", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch GitHub Tree": {
+      "main": [[{ "node": "Filter Video Drafts", "type": "main", "index": 0 }]]
+    },
+    "Filter Video Drafts": {
+      "main": [[{ "node": "Any Video Drafts?", "type": "main", "index": 0 }]]
+    },
+    "Any Video Drafts?": {
+      "main": [
+        [{ "node": "No Drafts - Stop", "type": "main", "index": 0 }],
+        [{ "node": "Split Into Batches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [[{ "node": "Fetch Video Draft Content", "type": "main", "index": 0 }]]
+    },
+    "Fetch Video Draft Content": {
+      "main": [[{ "node": "Parse Video Frontmatter", "type": "main", "index": 0 }]]
+    },
+    "Parse Video Frontmatter": {
+      "main": [[{ "node": "Should Process?", "type": "main", "index": 0 }]]
+    },
+    "Should Process?": {
+      "main": [
+        [],
+        [{ "node": "Needs Video Generation?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Needs Video Generation?": {
+      "main": [
+        [{ "node": "Which Generator?", "type": "main", "index": 0 }],
+        [{ "node": "Already Has Video URL", "type": "main", "index": 0 }]
+      ]
+    },
+    "Which Generator?": {
+      "main": [
+        [{ "node": "YT Studio - Generate Script", "type": "main", "index": 0 }],
+        [{ "node": "CIG - Submit Video Job", "type": "main", "index": 0 }]
+      ]
+    },
+    "YT Studio - Generate Script": {
+      "main": [[{ "node": "YT Studio - Generate Voice", "type": "main", "index": 0 }]]
+    },
+    "YT Studio - Generate Voice": {
+      "main": [[{ "node": "YT Studio - Submit Video Job", "type": "main", "index": 0 }]]
+    },
+    "YT Studio - Submit Video Job": {
+      "main": [[{ "node": "Normalize Job ID", "type": "main", "index": 0 }]]
+    },
+    "CIG - Submit Video Job": {
+      "main": [[{ "node": "Normalize Job ID", "type": "main", "index": 0 }]]
+    },
+    "Normalize Job ID": {
+      "main": [[{ "node": "Wait 30s", "type": "main", "index": 0 }]]
+    },
+    "Wait 30s": {
+      "main": [[{ "node": "Poll Video Status", "type": "main", "index": 0 }]]
+    },
+    "Poll Video Status": {
+      "main": [[{ "node": "Video Ready?", "type": "main", "index": 0 }]]
+    },
+    "Video Ready?": {
+      "main": [
+        [{ "node": "Prepare With Video URL", "type": "main", "index": 0 }],
+        [{ "node": "Loop Back - Wait More", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare With Video URL": {
+      "main": [[{ "node": "Expand Per Platform", "type": "main", "index": 0 }]]
+    },
+    "Already Has Video URL": {
+      "main": [[{ "node": "Expand Per Platform", "type": "main", "index": 0 }]]
+    },
+    "Expand Per Platform": {
+      "main": [[{ "node": "Route Video by Platform", "type": "main", "index": 0 }]]
+    },
+    "Route Video by Platform": {
+      "main": [
+        [{ "node": "Post YouTube Video", "type": "main", "index": 0 }],
+        [{ "node": "Post TikTok Video", "type": "main", "index": 0 }],
+        [{ "node": "Post Instagram Reels", "type": "main", "index": 0 }],
+        [{ "node": "Post Threads Video", "type": "main", "index": 0 }],
+        [{ "node": "Post LinkedIn Video", "type": "main", "index": 0 }]
+      ]
+    },
+    "Post YouTube Video": {
+      "main": [[{ "node": "Collect Video Post Results", "type": "main", "index": 0 }]]
+    },
+    "Post TikTok Video": {
+      "main": [[{ "node": "Collect Video Post Results", "type": "main", "index": 1 }]]
+    },
+    "Post Instagram Reels": {
+      "main": [[{ "node": "Collect Video Post Results", "type": "main", "index": 2 }]]
+    },
+    "Post Threads Video": {
+      "main": [[{ "node": "Collect Video Post Results", "type": "main", "index": 3 }]]
+    },
+    "Post LinkedIn Video": {
+      "main": [[{ "node": "Collect Video Post Results", "type": "main", "index": 4 }]]
+    },
+    "Collect Video Post Results": {
+      "main": [[{ "node": "Mark Video as Posted", "type": "main", "index": 0 }]]
+    },
+    "Mark Video as Posted": {
+      "main": [[{ "node": "Create Posted Marker", "type": "main", "index": 0 }]]
+    },
+    "Create Posted Marker": {
+      "main": [[{ "node": "Delete Original Video Draft", "type": "main", "index": 0 }]]
+    }
+  }
+}

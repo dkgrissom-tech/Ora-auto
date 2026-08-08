@@ -1,0 +1,718 @@
+{
+  "name": "Short-Form Content Pipeline v1",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["content", "auto-post", "short-form"],
+  "nodes": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Every Hour :05 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "5 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "name": "PAUSE_ALL Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/PAUSE_ALL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "name": "Is Paused?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "pause-check",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "name": "Paused - Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 500],
+      "parameters": {}
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440005",
+      "name": "Fetch GitHub Tree",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/dkgrissom-tech/Ora-auto/git/trees/main?recursive=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440006",
+      "name": "Filter Draft Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "jsCode": "// Filter tree for unposted content drafts\nconst tree = $input.first().json.tree || [];\nconst drafts = tree.filter(item => {\n  return item.path &&\n    item.path.startsWith('content_drafts/') &&\n    item.path.endsWith('.md') &&\n    !item.path.includes('.posted-') &&\n    item.type === 'blob';\n});\n\nif (drafts.length === 0) {\n  return [{ json: { _empty: true } }];\n}\n\nreturn drafts.map(d => ({ json: { path: d.path, sha: d.sha } }));"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440007",
+      "name": "Any Drafts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "empty-check",
+              "leftValue": "={{ $json._empty }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440008",
+      "name": "No Drafts - Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1340, 500],
+      "parameters": {}
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440009",
+      "name": "Split Into Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1560, 300],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440010",
+      "name": "Fetch File Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1780, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440011",
+      "name": "Parse Frontmatter and Check Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const raw = item.json;\n  const decoded = Buffer.from(raw.content || '', 'base64').toString('utf-8');\n  const fmMatch = decoded.match(/^---\\n([\\s\\S]*?)\\n---/);\n  if (!fmMatch) continue;\n\n  const fm = {};\n  for (const line of fmMatch[1].split('\\n')) {\n    // Handle array: platforms: [bluesky, threads]\n    const arrMatch = line.match(/^(\\w+):\\s*\\[(.+)\\]$/);\n    if (arrMatch) {\n      fm[arrMatch[1]] = arrMatch[2].split(',').map(s => s.trim());\n      continue;\n    }\n    const kvMatch = line.match(/^(\\w+):\\s*(.+)$/);\n    if (kvMatch) fm[kvMatch[1]] = kvMatch[2].trim();\n  }\n\n  const body = decoded.slice(fmMatch[0].length).trim();\n  const now = new Date();\n  const scheduled = new Date(fm.scheduled || '');\n  if (isNaN(scheduled.getTime())) continue; // no valid scheduled date, skip\n\n  const diffMs = scheduled - now;\n  const ninetyMin = 90 * 60 * 1000;\n  if (diffMs > ninetyMin) continue; // not yet time\n\n  const platforms = Array.isArray(fm.platforms)\n    ? fm.platforms\n    : (fm.platforms ? [fm.platforms] : []);\n\n  // Skip TikTok in short-form (video only)\n  const filteredPlatforms = platforms.filter(p => p !== 'tiktok');\n  if (filteredPlatforms.length === 0) continue;\n\n  items.push({\n    json: {\n      kind: fm.kind || 'text',\n      platforms: filteredPlatforms,\n      scheduled: fm.scheduled,\n      image: fm.image || '',\n      brand: fm.brand || 'default',\n      body,\n      filePath: raw.path,\n      fileSha: raw.sha,\n      fileEncoding: raw.encoding || 'base64',\n      rawContent: raw.content\n    }\n  });\n}\nreturn items.length > 0 ? items : [{ json: { _skip: true } }];"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440012",
+      "name": "Should Post?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440013",
+      "name": "Expand Per Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 300],
+      "parameters": {
+        "jsCode": "const result = [];\nfor (const item of $input.all()) {\n  const platforms = item.json.platforms || [];\n  for (const platform of platforms) {\n    result.push({ json: { ...item.json, platform } });\n  }\n}\nreturn result;"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440014",
+      "name": "Route by Platform",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [2660, 300],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "bluesky", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "bluesky"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "threads", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "threads"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "instagram", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "instagram"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "pinterest", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "pinterest"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "linkedin", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "linkedin"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "x", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "x"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [{ "leftValue": "={{ $json.platform }}", "rightValue": "mailerlite", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "mailerlite"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "none" }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440015",
+      "name": "Post to Bluesky",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 60],
+      "parameters": {
+        "method": "POST",
+        "url": "https://bsky.social/xrpc/com.atproto.repo.createRecord",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"repo\": \"{{ $vars.GRISSOM_BLUESKY_HANDLE }}\",\n  \"collection\": \"app.bsky.feed.post\",\n  \"record\": {\n    \"text\": {{ JSON.stringify($json.body.slice(0, 300)) }},\n    \"createdAt\": \"{{ new Date().toISOString() }}\",\n    \"$type\": \"app.bsky.feed.post\"\n  }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BLUESKY_CRED_ID",
+          "name": "Bluesky App Password Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440016",
+      "name": "Post to Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $vars.GRISSOM_THREADS_USER_ID }}/threads",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "media_type", "value": "TEXT" },
+            { "name": "text", "value": "={{ $json.body.slice(0, 500) }}" },
+            { "name": "access_token", "value": "={{ $vars.GRISSOM_META_LONG_TOKEN }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440017",
+      "name": "Publish Threads Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [3120, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.threads.net/v1.0/{{ $vars.GRISSOM_THREADS_USER_ID }}/threads_publish",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "creation_id", "value": "={{ $json.id }}" },
+            { "name": "access_token", "value": "={{ $vars.GRISSOM_META_LONG_TOKEN }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440018",
+      "name": "Post to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 340],
+      "notes": "Requires image URL in draft frontmatter (image: https://...). Skips silently if image missing.",
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/{{ $vars.GRISSOM_IG_USER_ID }}/media",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "image_url", "value": "={{ $json.image }}" },
+            { "name": "caption", "value": "={{ $json.body.slice(0, 2200) }}" },
+            { "name": "access_token", "value": "={{ $vars.GRISSOM_META_LONG_TOKEN }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440019",
+      "name": "Pinterest BLOCKED",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2900, 480],
+      "notes": "Pinterest requires app resubmission. Wire this up after approval. See WEEKEND_BLOCKERS.md.",
+      "parameters": {}
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440020",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 620],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"author\": \"urn:li:person:{{ $vars.ORA_LINKEDIN_PERSON_ID }}\",\n  \"lifecycleState\": \"PUBLISHED\",\n  \"specificContent\": {\n    \"com.linkedin.ugc.ShareContent\": {\n      \"shareCommentary\": { \"text\": {{ JSON.stringify($json.body.slice(0, 3000)) }} },\n      \"shareMediaCategory\": \"NONE\"\n    }\n  },\n  \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "LINKEDIN_CRED_ID",
+          "name": "LinkedIn OAuth Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440021",
+      "name": "Post to X Twitter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 760],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twitter.com/2/tweets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={ \"text\": {{ JSON.stringify($json.body.slice(0, 280)) }} }",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "X_CRED_ID",
+          "name": "X Bearer Token Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440022",
+      "name": "Send MailerLite Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2900, 900],
+      "parameters": {
+        "method": "POST",
+        "url": "https://connect.mailerlite.com/api/campaigns",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.GRISSOM_MAILERLITE_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"name\": \"Auto: {{ $json.brand }} {{ new Date().toISOString().slice(0,10) }}\",\n  \"type\": \"regular\",\n  \"subject\": {{ JSON.stringify($json.body.split('\\n')[0].slice(0, 150)) }},\n  \"content\": {\n    \"html\": {{ JSON.stringify('<p>' + $json.body.replace(/\\n/g, '</p><p>') + '</p>') }},\n    \"plain_text\": {{ JSON.stringify($json.body) }}\n  },\n  \"emails\": [{ \"from\": \"don@grissompress.com\", \"from_name\": \"{{ $json.brand }}\" }],\n  \"groups\": [\"{{ $vars.GRISSOM_MAILERLITE_GROUP_ID }}\"]\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440023",
+      "name": "Collect Platform Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3340, 480],
+      "parameters": {
+        "mode": "append",
+        "options": { "clashHandling": { "values": { "resolveClash": "preferLast" } } }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440024",
+      "name": "Check Post Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3560, 480],
+      "parameters": {
+        "jsCode": "// Evaluate results from all platform posts\n// Items arriving here are raw HTTP responses\n// We check statusCode — 2xx = success\nconst results = $input.all();\nconst passed = results.filter(r => {\n  const code = r.json.statusCode || r.json.status || 200;\n  return code >= 200 && code < 300;\n});\nconst failed = results.filter(r => {\n  const code = r.json.statusCode || r.json.status || 200;\n  return code < 200 || code >= 300;\n});\n\nreturn [{\n  json: {\n    filePath: results[0]?.json.filePath || '',\n    fileSha: results[0]?.json.fileSha || '',\n    successCount: passed.length,\n    failCount: failed.length,\n    failures: failed.map(f => ({ status: f.json.statusCode, body: f.json.body })),\n    hasError: failed.length > 0\n  }\n}];"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440025",
+      "name": "Error or Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3780, 480],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "error-check",
+              "leftValue": "={{ $json.hasError }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440026",
+      "name": "Log Error to Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4000, 380],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/posting_log/{{ new Date().toISOString().slice(0,10) }}.md",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"message\": \"fix: log posting error\",\n  \"content\": {{ JSON.stringify(Buffer.from(`# Error Log ${new Date().toISOString()}\\n\\nFile: ${$json.filePath}\\n\\n## Failures\\n\\n${JSON.stringify($json.failures, null, 2)}`).toString('base64')) }},\n  \"committer\": { \"name\": \"n8n-bot\", \"email\": \"bot@grissompress.com\" }\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440027",
+      "name": "Mark as Posted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4000, 580],
+      "parameters": {
+        "jsCode": "// Rename file by creating new path with .posted-<timestamp> suffix\n// and deleting old path via GitHub API\n// This node prepares the payload for the next PUT node\nconst item = $input.first().json;\nconst ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);\nconst oldPath = item.filePath;\nconst newPath = oldPath.replace('.md', `.posted-${ts}.md`);\n\nreturn [{\n  json: {\n    oldPath,\n    newPath,\n    fileSha: item.fileSha,\n    newPathEncoded: encodeURIComponent(newPath).replace(/%2F/g, '/'),\n    oldPathEncoded: encodeURIComponent(oldPath).replace(/%2F/g, '/')\n  }\n}];"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440028",
+      "name": "Create Posted File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4220, 580],
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.newPath }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"message\": \"feat: mark posted {{ $json.newPath }}\",\n  \"content\": {{ JSON.stringify(Buffer.from('posted').toString('base64')) }},\n  \"committer\": { \"name\": \"n8n-bot\", \"email\": \"bot@grissompress.com\" }\n}",
+        "options": { "response": { "response": { "neverError": true, "fullResponse": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440029",
+      "name": "Delete Original File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [4440, 580],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.github.com/repos/dkgrissom-tech/Ora-auto/contents/{{ $json.oldPath }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"message\": \"feat: remove draft after posting {{ $json.oldPath }}\",\n  \"sha\": \"{{ $json.fileSha }}\",\n  \"committer\": { \"name\": \"n8n-bot\", \"email\": \"bot@grissompress.com\" }\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GITHUB_CRED_ID",
+          "name": "GitHub PAT Header"
+        }
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440030",
+      "name": "Manual Trigger Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 600],
+      "webhookId": "short-form-manual-trigger",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "run-short-form",
+        "responseMode": "immediateResponse",
+        "responseData": "{ \"status\": \"triggered\", \"workflow\": \"short-form-pipeline\" }",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Every Hour :05 UTC": {
+      "main": [[{ "node": "PAUSE_ALL Check", "type": "main", "index": 0 }]]
+    },
+    "Manual Trigger Webhook": {
+      "main": [[{ "node": "PAUSE_ALL Check", "type": "main", "index": 0 }]]
+    },
+    "PAUSE_ALL Check": {
+      "main": [[{ "node": "Is Paused?", "type": "main", "index": 0 }]]
+    },
+    "Is Paused?": {
+      "main": [
+        [{ "node": "Paused - Stop", "type": "main", "index": 0 }],
+        [{ "node": "Fetch GitHub Tree", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch GitHub Tree": {
+      "main": [[{ "node": "Filter Draft Files", "type": "main", "index": 0 }]]
+    },
+    "Filter Draft Files": {
+      "main": [[{ "node": "Any Drafts?", "type": "main", "index": 0 }]]
+    },
+    "Any Drafts?": {
+      "main": [
+        [{ "node": "No Drafts - Stop", "type": "main", "index": 0 }],
+        [{ "node": "Split Into Batches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Into Batches": {
+      "main": [[{ "node": "Fetch File Content", "type": "main", "index": 0 }]]
+    },
+    "Fetch File Content": {
+      "main": [[{ "node": "Parse Frontmatter and Check Schedule", "type": "main", "index": 0 }]]
+    },
+    "Parse Frontmatter and Check Schedule": {
+      "main": [[{ "node": "Should Post?", "type": "main", "index": 0 }]]
+    },
+    "Should Post?": {
+      "main": [
+        [],
+        [{ "node": "Expand Per Platform", "type": "main", "index": 0 }]
+      ]
+    },
+    "Expand Per Platform": {
+      "main": [[{ "node": "Route by Platform", "type": "main", "index": 0 }]]
+    },
+    "Route by Platform": {
+      "main": [
+        [{ "node": "Post to Bluesky", "type": "main", "index": 0 }],
+        [{ "node": "Post to Threads", "type": "main", "index": 0 }],
+        [{ "node": "Post to Instagram", "type": "main", "index": 0 }],
+        [{ "node": "Pinterest BLOCKED", "type": "main", "index": 0 }],
+        [{ "node": "Post to LinkedIn", "type": "main", "index": 0 }],
+        [{ "node": "Post to X Twitter", "type": "main", "index": 0 }],
+        [{ "node": "Send MailerLite Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Post to Bluesky": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 0 }]]
+    },
+    "Post to Threads": {
+      "main": [[{ "node": "Publish Threads Post", "type": "main", "index": 0 }]]
+    },
+    "Publish Threads Post": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 1 }]]
+    },
+    "Post to Instagram": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 2 }]]
+    },
+    "Pinterest BLOCKED": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 3 }]]
+    },
+    "Post to LinkedIn": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 4 }]]
+    },
+    "Post to X Twitter": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 5 }]]
+    },
+    "Send MailerLite Email": {
+      "main": [[{ "node": "Collect Platform Results", "type": "main", "index": 6 }]]
+    },
+    "Collect Platform Results": {
+      "main": [[{ "node": "Check Post Success", "type": "main", "index": 0 }]]
+    },
+    "Check Post Success": {
+      "main": [[{ "node": "Error or Success?", "type": "main", "index": 0 }]]
+    },
+    "Error or Success?": {
+      "main": [
+        [{ "node": "Log Error to Repo", "type": "main", "index": 0 }],
+        [{ "node": "Mark as Posted", "type": "main", "index": 0 }]
+      ]
+    },
+    "Mark as Posted": {
+      "main": [[{ "node": "Create Posted File", "type": "main", "index": 0 }]]
+    },
+    "Create Posted File": {
+      "main": [[{ "node": "Delete Original File", "type": "main", "index": 0 }]]
+    }
+  }
+}
