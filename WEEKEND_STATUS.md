@@ -142,3 +142,62 @@ platform wiring, brand facts, and a 9-point definition of done.
 
 ### New env vars
 `{BRAND}_PINTEREST_LINK` (optional), `POSTIZ_DEFAULT_LINK` (optional fallback).
+
+## Update — Aug 7, 7:15 PM CDT — PRODUCTION OUTAGE FOUND AND FIXED
+
+### The headline
+`auto_post.yml` has been reporting **success while posting almost nothing**. The job
+exits 0 even when every individual post fails, so the green checkmarks in the Actions
+tab were meaningless. 38 of the last 40 runs were "successful" and Pinterest was
+crashing in all of them.
+
+### Root cause (fixed in `e929b45`)
+`parse_today()` stores `pinterest_title` as `None` when the meta key is absent.
+`main()` then called `p.get("pinterest_title", brand)` — which returns `None`, not
+`brand`, because the key *exists* with a `None` value. `title[:100]` then raised
+`TypeError: 'NoneType' object is not subscriptable`.
+
+**61 of the 66 Pinterest pins scheduled Aug 4–18 have no `pinterest_title`.**
+Pinterest is 73% of the whole queue and the primary Handy Hearts preorder channel,
+so this was the single most damaging bug in the system.
+
+Fix:
+- `derive_pin_title()` builds a title from the first real body line (strips markdown,
+  comments, quotes; converts ` | ` to ` - `; caps at 100 chars)
+- `pin_link()` falls back to a brand default (`grissom` → cedarhollow.pplx.app,
+  `familybook` → familybookcreator.app), overridable via `{BRAND}_PINTEREST_LINK`
+- `title`/`dest_url` guarded inside `post_pinterest` so a `None` can never crash a run
+- `link` key omitted entirely when empty rather than sent as `""`
+
+Verified against 19 real pins across 4 day files: 0 crashes, all titles clean.
+
+### Channel status, measured not assumed
+| Channel | State | Evidence |
+|---|---|---|
+| Bluesky | **Working** | CI dry run shows credentials present, app-password format correct |
+| Pinterest | **Fixed, awaiting first live run** | first real pin fires 02:00 UTC (9:00 PM CDT Aug 7) |
+| Threads | **Still dead** | `Threads keys missing — skipping` — needs `GRISSOM_THREADS_USER_ID` + `GRISSOM_META_LONG_TOKEN` |
+| Instagram / LinkedIn / TikTok | untested | no posts due during observed runs |
+
+### Postiz — deprioritized
+Don cannot log in. Findings:
+- Google sign-in is **permanently broken** on his instance: `/api/auth/oauth/GOOGLE`
+  returns a Google URL with **no `client_id`**, so Google rejects it before any
+  consent screen. Needs `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` on the Railway
+  service to ever work.
+- Registration API returns **"Email already exists"** for dkgrissom@gmail.com, so an
+  account exists — a fresh signup is not the answer.
+- Password reset is a **dead end**: no mail provider is configured, so `/auth/forgot`
+  sends nothing. Only a direct DB password write would recover it.
+- Signup URL is `/auth` (not `/auth/register`, which 404s). New accounts on this
+  instance auto-activate: `activated: provider !== 'LOCAL' || !hasEmail`.
+
+**Conclusion: Postiz is not on the critical path.** The GitHub Action already reaches
+Bluesky/Pinterest/Threads/Instagram/LinkedIn. Postiz was only needed for TikTok and
+YouTube video. The short-form n8n pipeline (`zrpFOQ6UpMV0pHzh`) stays parked until
+Don has a working Postiz key — it is redundant with `auto_post.yml` for everything
+except video.
+
+### Next verification
+The 02:00 UTC pin is the first live test of the fix. Check the `auto_post.yml` run at
+02:05 UTC for `[grissom] Pinterest posted OK`.
