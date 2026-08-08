@@ -26,6 +26,7 @@ Each post block in a markdown file looks like:
 import os
 import sys
 import datetime as dt
+import re
 from pathlib import Path
 
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
@@ -94,6 +95,34 @@ def parse_today(brand):
             "body": "\n".join(body_lines).strip(),
         })
     return posts
+
+def derive_pin_title(body):
+    """Pinterest needs a title. 61 of the 66 Aug 4-18 pins ship no pinterest_title,
+    so derive one from the first real line of the body instead of falling back to
+    the bare brand name."""
+    for raw in (body or "").splitlines():
+        line = re.sub(r"<!--.*?-->", "", raw).strip()
+        if not line or line.startswith("#"):
+            continue
+        line = re.sub(r"^#+\s*", "", line)
+        line = line.replace("**", "")
+        line = re.sub(r"[*_`]", "", line)
+        line = re.sub(r"[\"\u201c\u201d]", "", line)
+        line = re.sub(r"\s*\|\s*", " - ", line)
+        return re.sub(r"\s{2,}", " ", line).strip()[:100]
+    return ""
+
+# A pin with no destination link cannot drive a preorder, so fall back to each
+# brand's canonical page. Override with {BRAND}_PINTEREST_LINK.
+DEFAULT_PIN_LINKS = {
+    "grissom": "https://cedarhollow.pplx.app",
+    "familybook": "https://familybookcreator.app",
+}
+
+def pin_link(brand, dest_url):
+    return (dest_url
+            or os.environ.get(f"{brand.upper()}_PINTEREST_LINK")
+            or DEFAULT_PIN_LINKS.get(brand, ""))
 
 def asset_url(path):
     return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
@@ -237,6 +266,8 @@ def post_pinterest(brand, text, title, dest_url, image_path):
     import requests
     token = secret(brand, "PINTEREST_ACCESS_TOKEN")
     board = secret(brand, "PINTEREST_BOARD_ID")
+    title = title or brand
+    dest_url = dest_url or ""
     if not (token and board and image_path):
         log(f"[{brand}] Pinterest missing keys/image — skipping")
         return False
@@ -251,7 +282,7 @@ def post_pinterest(brand, text, title, dest_url, image_path):
                 "board_id": board,
                 "title": title[:100],
                 "description": text[:500],
-                "link": dest_url,
+                **({"link": dest_url} if dest_url else {}),
                 "media_source": {"source_type": "image_url", "url": asset_url(image_path)},
             }, timeout=30,
         )
@@ -329,8 +360,11 @@ def main():
                 elif plat == "instagram":
                     post_instagram(brand, p["body"], p.get("image"))
                 elif plat == "pinterest":
-                    post_pinterest(brand, p["body"], p.get("pinterest_title", brand),
-                                   p.get("pinterest_url", ""),
+                    post_pinterest(brand, p["body"],
+                                   p.get("pinterest_title")
+                                       or derive_pin_title(p["body"])
+                                       or brand,
+                                   pin_link(brand, p.get("pinterest_url")),
                                    p.get("image"))
                 elif plat == "tiktok":
                     if brand not in TIKTOK_ALLOWED_BRANDS:
