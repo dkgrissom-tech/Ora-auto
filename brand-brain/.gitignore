@@ -1,0 +1,7 @@
+# Keep brain_map.json and style_examples.jsonl tracked — they're the DNA cards.
+# Ignore local test outputs.
+*.local.json
+*.local.jsonl
+__pycache__/
+*.pyc
+.env
