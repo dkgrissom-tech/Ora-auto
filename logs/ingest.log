@@ -1233,3 +1233,17 @@
 [2026-08-08T18:15:09.959944Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-08T18:15:09.960019Z] [ingest] TOTAL: {'drafts': 8, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
 [2026-08-08T18:15:09.960081Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
+[2026-08-08T19:17:49.776144Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-08T19:17:49.776934Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-08T19:17:49.777062Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-08T19:17:49.777128Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-08T19:17:49.777817Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-08-08T19:17:49.777942Z] [ingest] [grissom] empty draft: handy-hearts-instagram-carousel-2026-08-03.md
+[2026-08-08T19:17:49.778077Z] [ingest] [grissom] empty draft: handy-hearts-pinterest-pin-2026-08-03.md
+[2026-08-08T19:17:49.778185Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-launch-2026-08-03.md
+[2026-08-08T19:17:49.778279Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-nancy-wes-tease-2026-08-03.md
+[2026-08-08T19:17:49.778372Z] [ingest] [grissom] empty draft: handy-hearts-tiktok-tropes-trench-coat-2026-08-03.md
+[2026-08-08T19:17:49.778432Z] [ingest] [grissom] summary: {'drafts': 6, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-08-08T19:17:49.778598Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-08T19:17:49.778659Z] [ingest] TOTAL: {'drafts': 8, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-08-08T19:17:49.778705Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
