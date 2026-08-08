@@ -9,7 +9,12 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from .generate import jobs, VIDEO_DIR, check_api_key
+try:
+    from . import jobstore
+    from .generate import VIDEO_DIR, check_api_key
+except ImportError:  # running flat on Replit (cwd = project root)
+    import jobstore
+    from generate import VIDEO_DIR, check_api_key
 
 router = APIRouter()
 
@@ -17,9 +22,10 @@ router = APIRouter()
 @router.get("/video/{job_id}")
 def get_video_status(job_id: str, request: Request):
     check_api_key(request)
-    if job_id not in jobs:
+    record = jobstore.get(job_id)
+    if record is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-    return jobs[job_id]
+    return record
 
 
 @router.get("/video-file/{job_id}")
@@ -33,4 +39,8 @@ def serve_video(job_id: str, request: Request):
 
 @router.get("/health")
 def health():
-    return {"status": "ok", "service": "content-ideas-generator-api", "jobs": len(jobs)}
+    return {
+        "status": "ok",
+        "service": "content-ideas-generator-api",
+        "jobs": jobstore.count(),
+    }

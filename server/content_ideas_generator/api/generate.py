@@ -12,6 +12,7 @@ Env vars needed in CIG Replit Secrets:
   API_BASE_URL       (https://content-ideas-grissom.replit.app after deploy)
 """
 
+import hmac
 import os
 import uuid
 import time
@@ -24,22 +25,32 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
+try:
+    from . import jobstore
+except ImportError:  # running flat on Replit (cwd = project root)
+    import jobstore
+
 router = APIRouter()
 
-jobs: dict = {}
-VIDEO_DIR = Path("/tmp/cig_videos")
-VIDEO_DIR.mkdir(exist_ok=True)
+# Rendered files must survive a container restart, same as the job store.
+VIDEO_DIR = Path(os.environ.get("CIG_VIDEO_DIR", "/tmp/cig_videos"))
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
 BASE_URL = os.environ.get("API_BASE_URL", "https://content-ideas-grissom.replit.app")
-EXPECTED_KEY = os.environ.get("CIG_API_KEY", "")
 
 
 def check_api_key(request: Request):
-    """Call this at the top of each endpoint."""
+    """Call this at the top of each endpoint.
+
+    Reads the env var per request rather than at import time so a key added
+    after boot takes effect on restart-free redeploys, and compares in constant
+    time so the endpoint can't be used as a timing oracle.
+    """
+    expected = os.environ.get("CIG_API_KEY", "")
     key = request.headers.get("X-API-Key", "")
-    if not EXPECTED_KEY:
+    if not expected:
         raise HTTPException(status_code=500, detail="CIG_API_KEY env var not set")
-    if key != EXPECTED_KEY:
+    if not hmac.compare_digest(key, expected):
         raise HTTPException(status_code=401, detail="Invalid X-API-Key")
 
 
@@ -61,7 +72,7 @@ class GenerateVideoRequest(BaseModel):
 def render_cig_video_worker(job_id: str, req_data: dict):
     """Background worker: calls Remotion CLI to render the beat sheet."""
     try:
-        jobs[job_id]["status"] = "rendering"
+        jobstore.update(job_id, {"status": "rendering"})
 
         beat_sheet = req_data["beat_sheet"]
         aspect = req_data.get("aspect", "9:16")
@@ -117,14 +128,14 @@ def render_cig_video_worker(job_id: str, req_data: dict):
             raise RuntimeError(f"Remotion render failed: {result.stderr[-800:]}")
 
         video_url = f"{BASE_URL}/api/video-file/{job_id}"
-        jobs[job_id].update({
+        jobstore.update(job_id, {
             "status": "done",
             "video_url": video_url,
             "completed_at": time.time()
         })
 
     except Exception as e:
-        jobs[job_id].update({
+        jobstore.update(job_id, {
             "status": "failed",
             "error": str(e),
             "failed_at": time.time()
@@ -135,12 +146,7 @@ def render_cig_video_worker(job_id: str, req_data: dict):
 def generate_video(req: GenerateVideoRequest, request: Request):
     check_api_key(request)
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {
-        "status": "queued",
-        "video_url": None,
-        "error": None,
-        "started_at": time.time()
-    }
+    jobstore.create(job_id)
     thread = threading.Thread(
         target=render_cig_video_worker,
         args=(job_id, req.dict()),

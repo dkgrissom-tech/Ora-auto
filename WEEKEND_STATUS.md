@@ -7,7 +7,7 @@ Live status against `Claude Weekend Master Directions — n8n + Marketing + Vide
 |---|---|
 | 1 — n8n workflow consolidation | ~70% |
 | 2 — Marketing plan | 0% — not started |
-| 3 — Video generator APIs | 0% — needs Replit access |
+| 3 — Video generator APIs | ~60% — code written and tested, not deployed (needs Replit access) |
 
 ---
 
@@ -58,14 +58,63 @@ launch** — 32 days out.
 
 ---
 
-## Module 3 — Video generator APIs (0%, blocked)
+## Module 3 — Video generator APIs (~60%, code done, deploy blocked)
 
-Requires adding REST endpoints to YT Studio and Content Ideas Generator inside Don's
-Replit workspaces and deploying both to Autoscale. Computer has no access to those
-workspaces, so this cannot be done for him — only specced.
+**Updated 2026-08-08.** The endpoint code now exists in this repo under `server/` and is
+smoke-tested. It is **not deployed** — that still needs Replit access, which Computer
+does not have.
 
-Consequence: `video_source: yt-studio` and `video_source: content-ideas-generator` drafts
-cannot work. **`video_source: manual` is unaffected** and is the whole pipeline today.
+### Written and tested
+
+| Path | Contents |
+|---|---|
+| `server/yt_studio/` | `main.py`, `jobstore.py`, `middleware/auth.py`, and 5 routers (`research`, `scripts`, `voice`, `video`, `thumbnail`) |
+| `server/content_ideas_generator/api/` | `generate.py`, `status.py`, `jobstore.py` |
+| `docs/video_api_contracts.md` | request/response contracts the n8n video pipeline expects |
+
+Verified locally with FastAPI `TestClient`: health endpoints return 200, missing and
+wrong `X-API-Key` both return 401, valid key with an unknown job returns 404, CORS allows
+`*.replit.app` and rejects other origins, and job state survives a module reload.
+
+### Fixed before it ever ran
+
+- **Job state no longer lives in a dict.** The first draft kept `jobs: dict = {}` in
+  module memory. Autoscale sleeps idle containers, and the n8n pipeline polls
+  `GET /api/video/:job_id` every 30s — a poll after a sleep would 404 forever on a video
+  that had actually rendered. Both services now persist one JSON file per job via
+  `jobstore.py`, written atomically.
+- **CIG router would not have loaded.** `status.py` used `from .generate import ...` with
+  no `__init__.py` anywhere. Package markers added, and both services now try a relative
+  import and fall back to a flat one, so they work whether Replit runs them as a package
+  or from the project root.
+- **CORS glob was dead config.** `allow_origins=["https://*.replit.app"]` never matches —
+  Starlette does exact string comparison there. Moved to `allow_origin_regex`.
+- **API key comparison** switched to `hmac.compare_digest`, and the expected key is now
+  read per request instead of captured at import time.
+
+### Deploy requirements (Don, in Replit)
+
+1. Copy `server/yt_studio/` into the YT Studio workspace, `server/content_ideas_generator/api/`
+   into the CIG workspace.
+2. `pip install fastapi uvicorn anthropic httpx pillow python-multipart`; CIG also needs
+   ffmpeg (`nix-env -iA nixpkgs.ffmpeg`).
+3. Secrets: `YT_STUDIO_API_KEY` / `CIG_API_KEY` (separate UUIDs), `ANTHROPIC_API_KEY`,
+   `ELEVENLABS_API_KEY`, `API_BASE_URL`.
+4. **Set Autoscale max instances = 1 on both.** The file-backed job store fixes restarts,
+   not cross-instance routing — the render thread and its output file must stay on the
+   same machine.
+5. Point `JOB_STORE_DIR` and `VIDEO_DIR` (`CIG_VIDEO_DIR` for CIG) at paths that survive a
+   restart. The defaults sit under `/tmp`, which Replit wipes on recycle.
+6. Mirror the two API keys into Railway env vars for n8n as `$env.YT_STUDIO_API_KEY` and
+   `$env.CIG_API_KEY` — **not** n8n Variables, which Community edition does not have.
+
+Until deployed: `video_source: yt-studio` and `video_source: content-ideas-generator`
+drafts still cannot work. **`video_source: manual` is unaffected** and is the whole
+pipeline today.
+
+> Renderer note: per the Content Ideas Generator decisions, native **9:16 output with
+> burned-in word-synced captions** is the outstanding product gate. Verify vertical
+> renders before wiring this to TikTok / Reels / Shorts.
 
 ---
 
@@ -77,7 +126,8 @@ cannot work. **`video_source: manual` is unaffected** and is the whole pipeline 
 2. **Decision on the legacy workflow** — deactivate `OCo1e3DoDuk0WY5J` or leave it.
 3. **:05 collision** — the short-form n8n workflow and `auto_post.yml` both own
    `clone_drafts/` at :05. One must be disabled before the other activates.
-4. **Replit access** for Module 3, or drop it and stay on `video_source: manual`.
+4. **Replit access** for Module 3 deploy — the code is written and tested as of Aug 8, so
+   this is now a deploy step, not a build step. Or drop it and stay on `video_source: manual`.
 5. **Pinterest** developer-app resubmission — blocked upstream, unrelated to n8n.
 
 ## Discrepancies found in the brief
