@@ -50,6 +50,10 @@ jobs:
                   "https://api.pinterest.com/v5/boards/$BOARD"
           fi
 
+          echo "=== 2b. SANDBOX host probe (trial-access apps only work here) ==="
+          probe "GET sandbox /v5/user_account" \
+                "https://api-sandbox.pinterest.com/v5/user_account"
+
           echo "=== 3. Interpretation ==="
           echo "user_account 200            -> token is GOOD; the pin payload or board is the problem"
           echo "user_account 401 code 2     -> credential dead: revoked, wrong value, or app lost API access"
