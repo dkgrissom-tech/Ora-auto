@@ -3,10 +3,9 @@ POST /api/video   — submit video render job
 GET  /api/video/:job_id — poll job status
 
 Video rendering uses Remotion (headless) or ffmpeg depending on template.
-Jobs run async in a background thread; status stored in memory dict.
-
-In production: use a proper job queue (Redis/Bull). For Replit Autoscale,
-in-memory is fine since renders complete in <5 min.
+Jobs run async in a background thread; status is persisted to disk by
+`jobstore` so a container restart between submit and poll does not orphan the
+job. Set Autoscale max instances = 1 (see jobstore docstring).
 """
 
 import os
@@ -20,13 +19,17 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 
+try:
+    from .. import jobstore
+except ImportError:  # running flat on Replit (cwd = project root)
+    import jobstore
+
 router = APIRouter()
 
-# In-memory job store: { job_id: { status, video_url, error, started_at } }
-jobs: dict = {}
-
-VIDEO_DIR = Path("/tmp/videos")
-VIDEO_DIR.mkdir(exist_ok=True)
+# Rendered files must live on a path that survives restarts, same as the job
+# store. Anything under /tmp is wiped when the container recycles.
+VIDEO_DIR = Path(os.environ.get("VIDEO_DIR", "/tmp/videos"))
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
 TEMPLATES = ["scrolling-text-gradient", "minimal-dark", "bold-yellow", "neon-outline"]
 BASE_URL = os.environ.get("API_BASE_URL", "https://yt-studio-grissom.replit.app")
@@ -43,7 +46,7 @@ class VideoRequest(BaseModel):
 def render_video_worker(job_id: str, req_data: dict):
     """Background worker: renders video using ffmpeg + generated subtitles."""
     try:
-        jobs[job_id]["status"] = "rendering"
+        jobstore.update(job_id, {"status": "rendering"})
 
         script_text = req_data["script_text"]
         audio_url = req_data["audio_url"]
@@ -117,14 +120,14 @@ def render_video_worker(job_id: str, req_data: dict):
             raise RuntimeError(f"ffmpeg failed: {result.stderr[-500:]}")
 
         video_url = f"{BASE_URL}/api/video-file/{job_id}"
-        jobs[job_id].update({
+        jobstore.update(job_id, {
             "status": "done",
             "video_url": video_url,
             "completed_at": time.time()
         })
 
     except Exception as e:
-        jobs[job_id].update({
+        jobstore.update(job_id, {
             "status": "failed",
             "error": str(e),
             "failed_at": time.time()
@@ -143,12 +146,7 @@ def _sec_to_srt(seconds: float) -> str:
 @router.post("/video")
 def submit_video_job(req: VideoRequest):
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {
-        "status": "queued",
-        "video_url": None,
-        "error": None,
-        "started_at": time.time()
-    }
+    jobstore.create(job_id)
     thread = threading.Thread(
         target=render_video_worker,
         args=(job_id, req.dict()),
@@ -160,9 +158,10 @@ def submit_video_job(req: VideoRequest):
 
 @router.get("/video/{job_id}")
 def get_video_status(job_id: str):
-    if job_id not in jobs:
+    record = jobstore.get(job_id)
+    if record is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-    return jobs[job_id]
+    return record
 
 
 @router.get("/video-file/{job_id}")
