@@ -104,6 +104,28 @@ jobs:
               raise SystemExit(0)
 
           oid = gql("{ account { organizations { id } } }")["data"]["account"]["organizations"][0]["id"]
+
+          # Channel health: a post stuck in "sending" usually means the network
+          # connection is broken or the account can't be API-published to.
+          d = gql('{ __type(name: "Channel"){ fields { name type '
+                  '{ kind name ofType { kind name } } } } }')
+          scal = []
+          for f in (((d.get("data") or {}).get("__type")) or {}).get("fields") or []:
+              t = f["type"]
+              while t.get("ofType") and t["kind"] in ("NON_NULL", "LIST"):
+                  t = t["ofType"]
+              if t.get("kind") in ("SCALAR", "ENUM"):
+                  scal.append(f["name"])
+          print("CHANNEL DIAGNOSTICS")
+          d = gql("query C($i: ChannelsInput!){ channels(input:$i){ %s } }" % " ".join(scal),
+                  {"i": {"organizationId": oid}})
+          for c in ((d.get("data") or {}).get("channels")) or []:
+              print(f"\n  --- {c.get('service')} / {c.get('name')} ---")
+              for k, v in sorted(c.items()):
+                  if v not in (None, "", False) or k.lower().startswith(("is", "needs", "has", "can")):
+                      print(f"    {k} = {v}")
+          print()
+
           ch = gql("query C($i: ChannelsInput!){ channels(input:$i){ id name service } }",
                    {"i": {"organizationId": oid}})["data"]["channels"]
           for c in ch:
