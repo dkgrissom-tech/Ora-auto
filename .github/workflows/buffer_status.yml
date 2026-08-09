@@ -3,6 +3,11 @@ name: Buffer Status Check
 # Confirms what Buffer actually did with recent posts. createPost returning
 # "sending" only means Buffer accepted the job, not that the network published
 # it — this is how you tell the difference.
+#
+# Schema (verified live):
+#   post(input: PostInput!)            PostInput  { id: PostId! }
+#   posts(input: PostsInput!)          PostsInput { organizationId!, filter, sort }
+#   PostsFiltersInput { channelIds, status, dueAt, createdAt, ... }
 on:
   workflow_dispatch:
     inputs:
@@ -41,23 +46,66 @@ jobs:
                   with urllib.request.urlopen(req, timeout=45) as r:
                       return json.loads(r.read())
               except urllib.error.HTTPError as e:
-                  return {"httpError": e.code, "body": e.read().decode()[:400]}
+                  return {"httpError": e.code, "body": e.read().decode()[:300]}
 
-          TREF = "{ kind name ofType { kind name ofType { kind name } } }"
-          def tn(t):
-              if not t: return "?"
-              if t["kind"]=="NON_NULL": return tn(t.get("ofType"))+"!"
-              if t["kind"]=="LIST": return "["+tn(t.get("ofType"))+"]"
-              return t.get("name") or t["kind"]
+          def fields_of(type_name):
+              d = gql('{ __type(name: "%s"){ fields { name } } }' % type_name)
+              t = (d.get("data") or {}).get("__type") or {}
+              return {f["name"] for f in (t.get("fields") or [])}
 
-          for typ in ("PostInput", "PostsInput", "PostsFiltersInput"):
-              d = gql('{ __type(name: "%s"){ name inputFields { name type %s } } }' % (typ, TREF))
-              t = ((d.get("data") or {}).get("__type"))
-              if not t:
-                  print(f"{typ}: not found"); continue
-              print(f"input {typ} {{")
-              for f in t.get("inputFields") or []:
-                  print(f"  {f['name']}: {tn(f['type'])}")
-              print("}")
+          # Work out whether posts() returns a connection or a plain list,
+          # rather than assuming a shape and getting a validation error.
+          d = gql('{ __schema { queryType { fields { name type '
+                  '{ kind name ofType { kind name ofType { kind name } } } } } } }')
+          rt = None
+          for f in (((d.get("data") or {}).get("__schema") or {}).get("queryType") or {}).get("fields") or []:
+              if f["name"] == "posts":
+                  t = f["type"]
+                  while t and t.get("kind") in ("NON_NULL", "LIST"):
+                      t = t.get("ofType")
+                  rt = (t or {}).get("name")
+          POST_FIELDS = "id status text dueAt sentAt externalLink channelService"
+          shape = "edges { node { %s } }" % POST_FIELDS
+          if rt and "edges" not in fields_of(rt):
+              shape = POST_FIELDS
+          print(f"posts() returns {rt}; using selection: {shape[:40]}...\n")
+
+          def rows(payload):
+              c = ((payload.get("data") or {}).get("posts")) or {}
+              if isinstance(c, list):
+                  return c
+              if "edges" in c:
+                  return [e["node"] for e in c["edges"]]
+              return c.get("items") or []
+
+          pid = (os.environ.get("POST_ID") or "").strip()
+          if pid:
+              d = gql("query P($i: PostInput!){ post(input: $i){ %s error { __typename } } }" % POST_FIELDS,
+                      {"i": {"id": pid}})
+              print(json.dumps(d, indent=2)[:2000])
+              post = ((d.get("data") or {}).get("post")) or {}
+              st = post.get("status")
+              print()
+              if st == "sent":
+                  print(f"CONFIRMED PUBLISHED -> {post.get('externalLink') or '(no link returned)'}")
+              elif st:
+                  print(f"NOT PUBLISHED YET - status is '{st}'")
+              raise SystemExit(0)
+
+          oid = gql("{ account { organizations { id } } }")["data"]["account"]["organizations"][0]["id"]
+          ch = gql("query C($i: ChannelsInput!){ channels(input:$i){ id name service } }",
+                   {"i": {"organizationId": oid}})["data"]["channels"]
+          for c in ch:
+              print(f"=== {c['service']} / {c['name']} ===")
+              d = gql("query Posts($i: PostsInput!){ posts(input: $i){ %s } }" % shape,
+                      {"i": {"organizationId": oid, "filter": {"channelIds": [c["id"]]}}})
+              if d.get("errors") or d.get("httpError"):
+                  print("   ", json.dumps(d.get("errors") or d)[:280], "\n"); continue
+              rs = rows(d)
+              if not rs:
+                  print("    (no posts)")
+              for n in rs[:5]:
+                  print(f"    [{n.get('status')}] {(n.get('text') or '')[:55]!r}")
+                  print(f"       sentAt={n.get('sentAt')}  link={n.get('externalLink')}")
               print()
           PY
