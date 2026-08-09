@@ -48,68 +48,66 @@ jobs:
                   print(f"[{label}] transport error: {e}")
                   return None, 0
 
-          # ---- 1. What root query fields exist? (schema may differ from docs) ----
-          print("=== 1. Root Query fields ===")
-          data, status = gql(
-              "{ __schema { queryType { fields { name } } } }", "introspect")
-          root = []
-          if data and "data" in data and data["data"]:
-              root = [f["name"] for f in data["data"]["__schema"]["queryType"]["fields"]]
-              print(", ".join(sorted(root)))
-          else:
-              print("introspection unavailable:", json.dumps(data)[:400] if data else status)
+          def introspect_type(name):
+              q = ('{ __type(name: "%s") { name kind '
+                   'inputFields { name type { name kind ofType { name kind } } } '
+                   'fields { name type { name kind ofType { name kind } } } } }') % name
+              d, _ = gql(q, f"type:{name}")
+              return (d or {}).get("data", {}).get("__type")
+
+          def fmt(fs):
+              out = []
+              for f in fs or []:
+                  t = f["type"]; req = t["kind"] == "NON_NULL"
+                  tn = t.get("name") or (t.get("ofType") or {}).get("name") or t["kind"]
+                  out.append(f"{f['name']}: {tn}{'!' if req else ''}")
+              return out
+
+          print("=== 1. ChannelsInput shape ===")
+          ci = introspect_type("ChannelsInput")
+          print(fmt(ci.get("inputFields")) if ci else "not found")
           print()
 
-          # ---- 2. List channels, trying the likely shapes ----
-          print("=== 2. Connected channels ===")
-          candidates = [
-            ("channels", "{ channels { id name service serviceId avatar } }"),
-            ("account.channels",
-             "{ account { channels { id name service serviceId } } }"),
-            ("organizations",
-             "{ organizations { id name channels { id name service serviceId } } }"),
-          ]
-          channels, used = [], None
-          for label, q in candidates:
-              if root and label.split(".")[0] not in root:
-                  continue
-              data, _ = gql(q, label)
-              if not data or data.get("errors"):
-                  if data and data.get("errors"):
-                      print(f"[{label}] {json.dumps(data['errors'])[:300]}")
-                  continue
-              print(f"[{label}] OK")
-              print(json.dumps(data.get("data"), indent=2)[:2500])
-              used = label
-              blob = json.dumps(data)
-              # crude harvest of channel objects for step 3
-              def walk(o):
-                  if isinstance(o, dict):
-                      if "service" in o and "id" in o:
-                          channels.append(o)
-                      for v in o.values(): walk(v)
-                  elif isinstance(o, list):
-                      for v in o: walk(v)
-              walk(data.get("data"))
-              break
-          if not used:
-              print("Could not list channels with any known query shape.")
+          print("=== 2. Account shape ===")
+          ac = introspect_type("Account")
+          print(fmt(ac.get("fields")) if ac else "not found")
           print()
 
-          # ---- 3. Pinterest boards for any pinterest channel ----
-          print("=== 3. Pinterest boards ===")
-          pins = [c for c in channels
-                  if str(c.get("service", "")).lower().startswith("pinterest")]
-          if not pins:
-              print("No Pinterest channel found among connected channels.")
-              print("Connect Pinterest inside Buffer, then re-run this workflow.")
-          for c in pins:
-              cid = c["id"]
-              print(f"--- channel {cid} ({c.get('name')}) ---")
-              q = ('{ channel(input: {id: "%s"}) { id name metadata { '
-                   '... on PinterestMetadata { boards { serviceId name url } } } } }') % cid
-              data, _ = gql(q, "boards")
-              print(json.dumps(data, indent=2)[:2500] if data else "query failed")
+          print("=== 3. Probe account / organizations ===")
+          for q in ['{ account { id } }',
+                    '{ account { id organizations { id name } } }',
+                    '{ account { id currentOrganization { id name } } }']:
+              d, _ = gql(q, "acct")
+              if d and not d.get("errors"):
+                  print("OK:", q); print(json.dumps(d["data"], indent=2)[:900])
+              elif d:
+                  print("ERR:", q, json.dumps(d["errors"])[:200])
+          print()
+
+          print("=== 4. channels(input:) attempts ===")
+          org = None
+          d, _ = gql('{ account { id organizations { id name } } }', "org")
+          try:
+              org = d["data"]["account"]["organizations"][0]["id"]
+              print("organizationId =", org)
+          except Exception:
+              print("no organizationId discovered")
+          attempts = ['{ channels(input: {}) { id name service } }']
+          if org:
+              attempts += ['{ channels(input: {organizationId: "%s"}) { id name service serviceId } }' % org]
+          for q in attempts:
+              d, _ = gql(q, "channels")
+              if d and not d.get("errors"):
+                  print("OK:", q); print(json.dumps(d["data"], indent=2)[:2500])
+                  for c in d["data"]["channels"]:
+                      if str(c.get("service","")).lower().startswith("pinterest"):
+                          bq = ('{ channel(input: {id: "%s"}) { id name metadata { '
+                                '... on PinterestMetadata { boards { serviceId name url } } } } }') % c["id"]
+                          bd, _ = gql(bq, "boards")
+                          print("PINTEREST BOARDS:", json.dumps(bd, indent=2)[:2000])
+                  break
+              elif d:
+                  print("ERR:", json.dumps(d["errors"])[:300])
           print()
           print("=== done ===")
           PY
