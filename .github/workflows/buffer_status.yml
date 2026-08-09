@@ -43,44 +43,21 @@ jobs:
               except urllib.error.HTTPError as e:
                   return {"httpError": e.code, "body": e.read().decode()[:400]}
 
-          pid = (os.environ.get("POST_ID") or "").strip()
-          if pid:
-              d = gql("""query P($i: PostInput!) {
-                post(input: $i) {
-                  id status text dueAt sentAt externalLink
-                  channelService
-                  error { __typename }
-                }
-              }""", {"i": {"id": pid}})
-              print(json.dumps(d, indent=2)[:3000])
-              post = ((d.get("data") or {}).get("post")) or {}
-              st = post.get("status")
-              print()
-              if st == "sent":
-                  print(f"CONFIRMED PUBLISHED -> {post.get('externalLink') or '(no link returned)'}")
-              elif st:
-                  print(f"NOT YET PUBLISHED - status is '{st}'")
-                  if post.get("error"):
-                      print("error:", json.dumps(post["error"]))
-              raise SystemExit(0)
+          TREF = "{ kind name ofType { kind name ofType { kind name } } }"
+          def tn(t):
+              if not t: return "?"
+              if t["kind"]=="NON_NULL": return tn(t.get("ofType"))+"!"
+              if t["kind"]=="LIST": return "["+tn(t.get("ofType"))+"]"
+              return t.get("name") or t["kind"]
 
-          # No id given: show the most recent posts per channel.
-          org = gql("{ account { organizations { id } } }")
-          oid = org["data"]["account"]["organizations"][0]["id"]
-          ch = gql("query C($i: ChannelsInput!){ channels(input:$i){ id name service } }",
-                   {"i": {"organizationId": oid}})
-          for c in ch["data"]["channels"]:
-              print(f"\n=== {c['service']} / {c['name']} ===")
-              d = gql("""query Posts($i: PostsInput!) {
-                posts(input: $i) { edges { node { id status text sentAt externalLink } } }
-              }""", {"i": {"organizationId": oid, "channelIds": [c["id"]], "first": 5}})
-              if d.get("errors"):
-                  print("  ", json.dumps(d["errors"])[:300]); continue
-              edges = (((d.get("data") or {}).get("posts") or {}).get("edges")) or []
-              if not edges:
-                  print("   (no posts)")
-              for e in edges:
-                  n = e["node"]
-                  print(f"   [{n.get('status')}] {(n.get('text') or '')[:60]!r}")
-                  print(f"      sentAt={n.get('sentAt')} link={n.get('externalLink')}")
+          for typ in ("PostInput", "PostsInput", "PostsFiltersInput"):
+              d = gql('{ __type(name: "%s"){ name inputFields { name type %s } } }' % (typ, TREF))
+              t = ((d.get("data") or {}).get("__type"))
+              if not t:
+                  print(f"{typ}: not found"); continue
+              print(f"input {typ} {{")
+              for f in t.get("inputFields") or []:
+                  print(f"  {f['name']}: {tn(f['type'])}")
+              print("}")
+              print()
           PY
