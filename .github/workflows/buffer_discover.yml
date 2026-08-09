@@ -1,0 +1,114 @@
+name: Buffer Channel Discovery
+
+# Manual-only. Uses BUFFER_ACCESS_TOKEN to list connected channels and Pinterest
+# boards, so we can wire the scheduler to real IDs. Never prints the token.
+on:
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Query Buffer GraphQL
+        env:
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+
+          TOKEN = os.environ.get("BUFFER_ACCESS_TOKEN", "")
+          if not TOKEN:
+              print("FATAL: BUFFER_ACCESS_TOKEN secret is empty or not set.")
+              raise SystemExit(1)
+          print(f"token length: {len(TOKEN)}  (value never printed)")
+          print()
+
+          URL = "https://api.buffer.com"
+
+          def gql(query, label):
+              body = json.dumps({"query": query}).encode()
+              req = urllib.request.Request(
+                  URL, data=body, method="POST",
+                  headers={"Authorization": f"Bearer {TOKEN}",
+                           "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return json.loads(r.read()), r.status
+              except urllib.error.HTTPError as e:
+                  raw = e.read().decode(errors="replace")
+                  print(f"[{label}] HTTP {e.code}: {raw[:600]}")
+                  return None, e.code
+              except Exception as e:
+                  print(f"[{label}] transport error: {e}")
+                  return None, 0
+
+          # ---- 1. What root query fields exist? (schema may differ from docs) ----
+          print("=== 1. Root Query fields ===")
+          data, status = gql(
+              "{ __schema { queryType { fields { name } } } }", "introspect")
+          root = []
+          if data and "data" in data and data["data"]:
+              root = [f["name"] for f in data["data"]["__schema"]["queryType"]["fields"]]
+              print(", ".join(sorted(root)))
+          else:
+              print("introspection unavailable:", json.dumps(data)[:400] if data else status)
+          print()
+
+          # ---- 2. List channels, trying the likely shapes ----
+          print("=== 2. Connected channels ===")
+          candidates = [
+            ("channels", "{ channels { id name service serviceId avatar } }"),
+            ("account.channels",
+             "{ account { channels { id name service serviceId } } }"),
+            ("organizations",
+             "{ organizations { id name channels { id name service serviceId } } }"),
+          ]
+          channels, used = [], None
+          for label, q in candidates:
+              if root and label.split(".")[0] not in root:
+                  continue
+              data, _ = gql(q, label)
+              if not data or data.get("errors"):
+                  if data and data.get("errors"):
+                      print(f"[{label}] {json.dumps(data['errors'])[:300]}")
+                  continue
+              print(f"[{label}] OK")
+              print(json.dumps(data.get("data"), indent=2)[:2500])
+              used = label
+              blob = json.dumps(data)
+              # crude harvest of channel objects for step 3
+              def walk(o):
+                  if isinstance(o, dict):
+                      if "service" in o and "id" in o:
+                          channels.append(o)
+                      for v in o.values(): walk(v)
+                  elif isinstance(o, list):
+                      for v in o: walk(v)
+              walk(data.get("data"))
+              break
+          if not used:
+              print("Could not list channels with any known query shape.")
+          print()
+
+          # ---- 3. Pinterest boards for any pinterest channel ----
+          print("=== 3. Pinterest boards ===")
+          pins = [c for c in channels
+                  if str(c.get("service", "")).lower().startswith("pinterest")]
+          if not pins:
+              print("No Pinterest channel found among connected channels.")
+              print("Connect Pinterest inside Buffer, then re-run this workflow.")
+          for c in pins:
+              cid = c["id"]
+              print(f"--- channel {cid} ({c.get('name')}) ---")
+              q = ('{ channel(input: {id: "%s"}) { id name metadata { '
+                   '... on PinterestMetadata { boards { serviceId name url } } } } }') % cid
+              data, _ = gql(q, "boards")
+              print(json.dumps(data, indent=2)[:2500] if data else "query failed")
+          print()
+          print("=== done ===")
+          PY
