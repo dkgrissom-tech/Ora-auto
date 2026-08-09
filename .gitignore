@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Runtime log, rewritten on every scheduler tick. Tracking it made every
+# ledger commit fail to rebase.
+logs/scheduler.log

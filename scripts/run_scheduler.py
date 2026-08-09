@@ -508,6 +508,11 @@ def post_key(brand, post, platform):
 
 
 def save_ledger(keys):
+    # A dry run must never record a delivery, or the real post that follows
+    # would be skipped as already sent.
+    if DRY_RUN:
+        log("[DRY] ledger not written")
+        return
     # Keep the file from growing without bound; 30 days is plenty to cover
     # any realistic duplicate window.
     cutoff = (dt.datetime.utcnow() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
