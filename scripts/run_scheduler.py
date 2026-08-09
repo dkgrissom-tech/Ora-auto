@@ -392,9 +392,22 @@ def buffer_gql(query, variables):
     return payload.get("data"), None
 
 
+# createPost returns the union PostActionPayload. Every member is handled
+# explicitly - an unhandled member would look like a silent success.
+# Verified members: PostActionSuccess, InvalidInputError, LimitReachedError,
+# NotFoundError, RestProxyError, UnauthorizedError, UnexpectedError.
 CREATE_POST = """
 mutation CreatePost($input: CreatePostInput!) {
-  createPost(input: $input) { ... on PostCreated { post { id status } } }
+  createPost(input: $input) {
+    __typename
+    ... on PostActionSuccess { post { id status sentAt } }
+    ... on RestProxyError    { code message }
+    ... on InvalidInputError  { message }
+    ... on LimitReachedError  { message }
+    ... on NotFoundError      { message }
+    ... on UnauthorizedError  { message }
+    ... on UnexpectedError    { message }
+  }
 }
 """
 
@@ -455,9 +468,20 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None):
     if err:
         log(f"[{brand}] Buffer/{service} FAIL: {err}")
         return False
-    created = ((data or {}).get("createPost") or {}).get("post") or {}
+
+    result = (data or {}).get("createPost") or {}
+    kind = result.get("__typename")
+    if kind != "PostActionSuccess":
+        detail = result.get("message") or "no detail returned"
+        code = result.get("code")
+        log(f"[{brand}] Buffer/{service} FAIL: {kind or 'empty response'} - "
+            f"{detail}{f' (code {code})' if code else ''}")
+        return False
+
+    post = result.get("post") or {}
     log(f"[{brand}] Buffer/{service} posted OK "
-        f"(id={created.get('id', '?')} status={created.get('status', '?')})")
+        f"(id={post.get('id', '?')} status={post.get('status', '?')} "
+        f"sentAt={post.get('sentAt') or 'pending'})")
     return True
 
 
