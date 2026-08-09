@@ -1,0 +1,86 @@
+name: Buffer Status Check
+
+# Confirms what Buffer actually did with recent posts. createPost returning
+# "sending" only means Buffer accepted the job, not that the network published
+# it — this is how you tell the difference.
+on:
+  workflow_dispatch:
+    inputs:
+      post_id:
+        description: 'Specific Buffer post id (optional)'
+        required: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Query Buffer
+        env:
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_ACCESS_TOKE: ${{ secrets.BUFFER_ACCESS_TOKE }}
+          POST_ID: ${{ github.event.inputs.post_id }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+
+          T = (os.environ.get("BUFFER_ACCESS_TOKEN") or os.environ.get("BUFFER_ACCESS_TOKE") or "").strip()
+          if not T:
+              print("FATAL: Buffer token not set."); raise SystemExit(1)
+
+          def gql(q, v=None):
+              req = urllib.request.Request(
+                  "https://api.buffer.com",
+                  data=json.dumps({"query": q, "variables": v or {}}).encode(),
+                  method="POST",
+                  headers={"Authorization": f"Bearer {T}", "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      return json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  return {"httpError": e.code, "body": e.read().decode()[:400]}
+
+          pid = (os.environ.get("POST_ID") or "").strip()
+          if pid:
+              d = gql("""query P($id: PostId!) {
+                post(id: $id) {
+                  id status text dueAt sentAt externalLink
+                  channelService
+                  error { __typename }
+                }
+              }""", {"id": pid})
+              print(json.dumps(d, indent=2)[:3000])
+              post = ((d.get("data") or {}).get("post")) or {}
+              st = post.get("status")
+              print()
+              if st == "sent":
+                  print(f"CONFIRMED PUBLISHED -> {post.get('externalLink') or '(no link returned)'}")
+              elif st:
+                  print(f"NOT YET PUBLISHED - status is '{st}'")
+                  if post.get("error"):
+                      print("error:", json.dumps(post["error"]))
+              raise SystemExit(0)
+
+          # No id given: show the most recent posts per channel.
+          org = gql("{ account { organizations { id } } }")
+          oid = org["data"]["account"]["organizations"][0]["id"]
+          ch = gql("query C($i: ChannelsInput!){ channels(input:$i){ id name service } }",
+                   {"i": {"organizationId": oid}})
+          for c in ch["data"]["channels"]:
+              print(f"\n=== {c['service']} / {c['name']} ===")
+              d = gql("""query Posts($i: PostsInput!) {
+                posts(input: $i) { edges { node { id status text sentAt externalLink } } }
+              }""", {"i": {"organizationId": oid, "channelIds": [c["id"]], "first": 5}})
+              if d.get("errors"):
+                  print("  ", json.dumps(d["errors"])[:300]); continue
+              edges = (((d.get("data") or {}).get("posts") or {}).get("edges")) or []
+              if not edges:
+                  print("   (no posts)")
+              for e in edges:
+                  n = e["node"]
+                  print(f"   [{n.get('status')}] {(n.get('text') or '')[:60]!r}")
+                  print(f"      sentAt={n.get('sentAt')} link={n.get('externalLink')}")
+          PY
