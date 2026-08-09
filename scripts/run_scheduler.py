@@ -372,24 +372,45 @@ def buffer_token():
             or os.environ.get("BUFFER_ACCESS_TOKE") or "").strip()
 
 
-def buffer_gql(query, variables):
+def buffer_gql(query, variables, attempts=4):
+    """Buffer intermittently answers a valid token with 401 UNAUTHENTICATED -
+    observed repeatedly on 2026-08-09, with identical requests succeeding
+    seconds apart. Treat auth, rate-limit and 5xx responses as transient and
+    retry; only a GraphQL validation error is worth failing immediately."""
+    import time
     import requests
-    r = requests.post(
-        BUFFER_API,
-        headers={"Authorization": f"Bearer {buffer_token()}",
-                 "Content-Type": "application/json"},
-        json={"query": query, "variables": variables}, timeout=45,
-    )
-    try:
-        payload = r.json()
-    except Exception:
-        return None, f"HTTP {r.status_code}: {r.text[:200]}"
-    if payload.get("errors"):
-        msgs = "; ".join(e.get("message", "?") for e in payload["errors"])
-        return None, f"GraphQL: {msgs[:300]}"
-    if r.status_code >= 400:
-        return None, f"HTTP {r.status_code}: {r.text[:200]}"
-    return payload.get("data"), None
+    last = "no attempt made"
+    for i in range(attempts):
+        try:
+            r = requests.post(
+                BUFFER_API,
+                headers={"Authorization": f"Bearer {buffer_token()}",
+                         "Content-Type": "application/json"},
+                json={"query": query, "variables": variables}, timeout=45,
+            )
+        except Exception as e:
+            last = f"transport: {e}"
+        else:
+            try:
+                payload = r.json()
+            except Exception:
+                payload = {}
+            if r.status_code < 400 and not payload.get("errors"):
+                return payload.get("data"), None
+            msgs = "; ".join(e.get("message", "?") for e in payload.get("errors") or [])
+            last = f"HTTP {r.status_code}: {msgs or r.text[:200]}"
+            # A malformed query will never succeed - do not burn retries on it.
+            codes = {(e.get("extensions") or {}).get("code")
+                     for e in payload.get("errors") or []}
+            if "GRAPHQL_VALIDATION_FAILED" in codes:
+                return None, last
+            if r.status_code < 500 and r.status_code not in (401, 408, 429):
+                return None, last
+        if i < attempts - 1:
+            wait = 2 ** i
+            log(f"Buffer transient error ({last[:80]}) - retrying in {wait}s")
+            time.sleep(wait)
+    return None, f"{last} (after {attempts} attempts)"
 
 
 # createPost returns the union PostActionPayload. Every member is handled
@@ -549,6 +570,24 @@ def save_ledger(keys):
 TIKTOK_ALLOWED_BRANDS = {"ora"}
 
 
+def plain(text):
+    """Queue bodies are markdown, but no social network renders it - the live
+    Instagram test went out with literal ** around the headline. Strip the
+    syntax and keep the words. Hashtags and emoji are left alone."""
+    t = text or ""
+    t = re.sub(r"<!--.*?-->", "", t, flags=re.S)
+    t = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", t)   # images -> alt text
+    t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 \2", t)  # links -> text + url
+    t = re.sub(r"\*\*(.+?)\*\*", r"\1", t, flags=re.S)  # bold
+    t = re.sub(r"(?<!\w)_(.+?)_(?!\w)", r"\1", t, flags=re.S)  # underscore italic
+    t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"\1", t, flags=re.S)
+    t = re.sub(r"`([^`]*)`", r"\1", t)
+    t = re.sub(r"^\s{0,3}#{1,6}\s+", "", t, flags=re.M)  # headings, not hashtags
+    t = re.sub(r"^\s{0,3}>\s?", "", t, flags=re.M)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    return t.strip()
+
+
 def outcome(res, detail=""):
     """Three states, not two. None means the platform was never configured, so
     it is a skip; only an attempted-and-refused post counts as a failure."""
@@ -562,7 +601,7 @@ def deliver(brand, post, platform):
     'ok', 'fail', or 'skip'. Every branch must return - a platform that falls
     through silently is exactly the bug this rewrite exists to kill."""
     global _ig_sent_today
-    body = post["body"]
+    body = plain(post["body"])
     image = post.get("image")
 
     if platform == "bluesky":

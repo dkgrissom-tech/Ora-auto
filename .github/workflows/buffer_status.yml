@@ -48,6 +48,17 @@ jobs:
               except urllib.error.HTTPError as e:
                   return {"httpError": e.code, "body": e.read().decode()[:300]}
 
+          def gql_retry(q, v=None, n=4):
+              # Buffer intermittently 401s a valid token; retry before believing it.
+              import time
+              for i in range(n):
+                  d = gql(q, v)
+                  if not d.get("httpError"):
+                      return d
+                  if i < n - 1:
+                      time.sleep(2 ** i)
+              return d
+
           def fields_of(type_name):
               d = gql('{ __type(name: "%s"){ fields { name } } }' % type_name)
               t = (d.get("data") or {}).get("__type") or {}
@@ -80,7 +91,7 @@ jobs:
 
           pid = (os.environ.get("POST_ID") or "").strip()
           if pid:
-              d = gql("query P($i: PostInput!){ post(input: $i){ %s error { __typename } } }" % POST_FIELDS,
+              d = gql_retry("query P($i: PostInput!){ post(input: $i){ %s error { __typename } } }" % POST_FIELDS,
                       {"i": {"id": pid}})
               print(json.dumps(d, indent=2)[:2000])
               post = ((d.get("data") or {}).get("post")) or {}
