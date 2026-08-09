@@ -3,11 +3,13 @@ kind: social
 brand: grissom
 platforms: [bluesky]
 scheduled: 2026-09-02T19:00:00-05:00
-filename: handy-hearts-slow-burn-2026-09-02.md
+filename: handy-hearts-careful-people-2026-09-02.md
 ---
 
-Two people who've both learned what loss costs don't rush anything.
+Two people who've both learned exactly how much loss costs.
 
-They measure twice. They stay quiet a beat too long. They leave before they mean something.
+Every word measured. Every almost-touch noticed.
 
-Handy Hearts. Sept 8.
+That's the whole slow burn right there.
+
+#HandyHearts — Sept 8
