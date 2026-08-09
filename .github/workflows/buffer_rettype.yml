@@ -19,12 +19,10 @@ jobs:
               try:
                   with urllib.request.urlopen(r,timeout=45) as x: return json.loads(x.read())
               except urllib.error.HTTPError as e: return {"http":e.code,"body":e.read().decode()[:400]}
-          d=gql('{ __schema { mutationType { fields { name type { kind name ofType { kind name } } } } } }')
-          for f in d["data"]["__schema"]["mutationType"]["fields"]:
-              if f["name"]=="createPost":
-                  print("createPost returns:", json.dumps(f["type"]))
-                  rt=f["type"].get("name") or (f["type"].get("ofType") or {}).get("name")
-                  print("resolved type name:", rt)
-                  d2=gql('{ __type(name: "%s") { kind name possibleTypes { name fields { name } } fields { name } } }' % rt)
-                  print(json.dumps(d2, indent=2)[:2500])
+          d=gql('{ __type(name: "Post") { name fields { name type { kind name ofType { kind name } } } } }')
+          fs=(d.get("data") or {}).get("__type") or {}
+          print("POST FIELDS:")
+          for f in fs.get("fields") or []:
+              t=f["type"]; n=t.get("name") or (t.get("ofType") or {}).get("name") or t.get("kind")
+              print(f"  {f['name']}: {n}")
           PY
