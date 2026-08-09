@@ -2,7 +2,10 @@ name: Auto-Post (Multi-Brand)
 
 on:
   schedule:
-    - cron: '5 * * * *'
+    # Moved off :05 — a legacy n8n flow also fires at :05 UTC and the two
+    # could publish the same block twice. Posts are matched by hour, not
+    # minute, so the shift changes nothing about when a post is due.
+    - cron: '20 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -10,9 +13,17 @@ on:
         type: boolean
         default: false
 
+# Never let two ticks run at once. Without this, a slow run plus the next
+# hour's run can double-publish.
+concurrency:
+  group: auto-post
+  cancel-in-progress: false
+
 jobs:
   post:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +37,13 @@ jobs:
       - name: Run scheduler
         env:
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+
+          # ===== BUFFER (account-wide, not per brand) =====
+          # Publishes Instagram. The secret name was saved truncated in
+          # GitHub, so both spellings are passed and the script accepts either.
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_ACCESS_TOKE:  ${{ secrets.BUFFER_ACCESS_TOKE }}
+          BUFFER_IG_DAILY_CAP: '2'
 
           # ===== ORA =====
           ORA_BLUESKY_HANDLE:         ${{ secrets.ORA_BLUESKY_HANDLE }}
@@ -64,3 +82,23 @@ jobs:
           FAMILYBOOK_TIKTOK_ACCESS_TOKEN:    ${{ secrets.FAMILYBOOK_TIKTOK_ACCESS_TOKEN }}
 
         run: python scripts/run_scheduler.py
+
+      # Runs even when posting failed, so a partial success is still recorded
+      # and cannot be re-sent on the next tick.
+      - name: Persist delivery ledger
+        if: always()
+        run: |
+          git config user.name  "ora-auto[bot]"
+          git config user.email "ora-auto@users.noreply.github.com"
+          git add -f logs/posted.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "ledger unchanged"
+            exit 0
+          fi
+          git commit -q -m "chore(ledger): record delivered posts [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase -q origin main && git push -q origin main && exit 0
+            echo "push race, retrying ($i)"
+            sleep 5
+          done
+          echo "::warning::could not persist ledger after 3 attempts"

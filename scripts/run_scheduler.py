@@ -142,8 +142,8 @@ def post_bluesky(brand, text):
     # Normalize app password: strip whitespace only. Preserve hyphens/case.
     password = password_raw.strip()
     if not (handle and password):
-        log(f"[{brand}] Bluesky keys missing — skipping")
-        return False
+        log(f"[{brand}] Bluesky keys missing — not configured")
+        return None
     # Log a fingerprint (character count + shape) that GitHub can't mask
     # because it doesn't match the secret value directly.
     h_len = len(handle)
@@ -170,8 +170,8 @@ def post_linkedin(brand, text):
     token = secret(brand, "LINKEDIN_ACCESS_TOKEN")
     urn = secret(brand, "LINKEDIN_AUTHOR_URN")
     if not (token and urn):
-        log(f"[{brand}] LinkedIn keys missing — skipping")
-        return False
+        log(f"[{brand}] LinkedIn keys missing — not configured")
+        return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] LinkedIn post: {text[:60]}...")
         return True
@@ -206,8 +206,8 @@ def post_threads(brand, text):
     token = secret(brand, "META_LONG_TOKEN")
     user = secret(brand, "THREADS_USER_ID")
     if not (token and user):
-        log(f"[{brand}] Threads keys missing — skipping")
-        return False
+        log(f"[{brand}] Threads keys missing — not configured")
+        return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] Threads post: {text[:60]}...")
         return True
@@ -237,8 +237,8 @@ def post_instagram(brand, text, image_path):
     token = secret(brand, "META_LONG_TOKEN")
     user = secret(brand, "INSTAGRAM_USER_ID")
     if not (token and user and image_path):
-        log(f"[{brand}] Instagram missing keys or image — skipping")
-        return False
+        log(f"[{brand}] Instagram missing keys or image — not configured")
+        return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] Instagram post with image {image_path}: {text[:60]}...")
         return True
@@ -269,8 +269,8 @@ def post_pinterest(brand, text, title, dest_url, image_path):
     title = title or brand
     dest_url = dest_url or ""
     if not (token and board and image_path):
-        log(f"[{brand}] Pinterest missing keys/image — skipping")
-        return False
+        log(f"[{brand}] Pinterest missing keys/image — not configured")
+        return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] Pinterest pin: {title}")
         return True
@@ -299,8 +299,8 @@ def post_tiktok(brand, text, video_path):
     import requests
     token = secret(brand, "TIKTOK_ACCESS_TOKEN")
     if not (token and video_path):
-        log(f"[{brand}] TikTok missing keys/video — skipping")
-        return False
+        log(f"[{brand}] TikTok missing keys/video — not configured")
+        return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] TikTok: {video_path}")
         return True
@@ -332,47 +332,336 @@ def post_tiktok(brand, text, video_path):
         log(f"[{brand}] TikTok FAIL: {e}")
         return False
 
+# ---------------------------------------------------------------------------
+# Buffer publishing
+#
+# Buffer is a single account (not per-brand), reached through one GraphQL
+# endpoint. It is how Instagram gets published: the direct Meta Graph path in
+# post_instagram() needs a reviewed Facebook app, which this account does not
+# have, so Buffer is the working route.
+#
+# Schema verified live against api.buffer.com on 2026-08-09:
+#   createPost(input: CreatePostInput!)
+#   CreatePostInput { channelId: ChannelId!  assets: [AssetInput!]!
+#                     mode: ShareMode!  schedulingType: SchedulingType!
+#                     needsApproval: Boolean!  text: String
+#                     metadata: PostInputMetaData }
+#   ShareMode      = addToQueue | customScheduled | shareNext | shareNow
+#   SchedulingType = automatic | notification
+#   ImageAssetInput { url: String!  thumbnailUrl  metadata { altText: String! } }
+#   InstagramPostMetadataInput { shouldShareToFeed: Boolean!  type: PostType!
+#                                firstComment  link  ... }
+#   PostType = carousel | reel | story | post | thread | short | ...
+# ---------------------------------------------------------------------------
+
+BUFFER_API = "https://api.buffer.com"
+
+# Channel IDs resolved from the live account. Override with env vars if the
+# channels are ever reconnected (reconnecting changes the ID).
+BUFFER_CHANNELS = {
+    "instagram": os.environ.get("BUFFER_CHANNEL_INSTAGRAM", "6a4aa7984048344628728874"),
+    "tiktok":    os.environ.get("BUFFER_CHANNEL_TIKTOK",    "6a236b76c687a22dd4667858"),
+    "youtube":   os.environ.get("BUFFER_CHANNEL_YOUTUBE",   "6a4aa6ec40483446287286c9"),
+}
+
+
+def buffer_token():
+    # The secret was saved with a truncated name in GitHub; accept both so a
+    # rename does not silently disable posting.
+    return (os.environ.get("BUFFER_ACCESS_TOKEN")
+            or os.environ.get("BUFFER_ACCESS_TOKE") or "").strip()
+
+
+def buffer_gql(query, variables):
+    import requests
+    r = requests.post(
+        BUFFER_API,
+        headers={"Authorization": f"Bearer {buffer_token()}",
+                 "Content-Type": "application/json"},
+        json={"query": query, "variables": variables}, timeout=45,
+    )
+    try:
+        payload = r.json()
+    except Exception:
+        return None, f"HTTP {r.status_code}: {r.text[:200]}"
+    if payload.get("errors"):
+        msgs = "; ".join(e.get("message", "?") for e in payload["errors"])
+        return None, f"GraphQL: {msgs[:300]}"
+    if r.status_code >= 400:
+        return None, f"HTTP {r.status_code}: {r.text[:200]}"
+    return payload.get("data"), None
+
+
+CREATE_POST = """
+mutation CreatePost($input: CreatePostInput!) {
+  createPost(input: $input) { ... on PostCreated { post { id status } } }
+}
+"""
+
+
+def ig_post_type(image_path):
+    """Buffer needs the post type declared. Infer it the same way the art
+    pipeline does, from the filename."""
+    n = (image_path or "").lower()
+    if "reel" in n or "story" in n:
+        return "reel"
+    if "carousel" in n:
+        return "carousel"
+    return "post"
+
+
+def post_buffer(brand, text, image_path, service="instagram", alt_text=None):
+    """Publish immediately through Buffer to one connected channel."""
+    channel = BUFFER_CHANNELS.get(service)
+    token = buffer_token()
+    if not token:
+        log(f"[{brand}] Buffer token missing - not configured")
+        return None
+    if not channel:
+        log(f"[{brand}] Buffer has no {service} channel configured")
+        return None
+    # Instagram will not accept a post with no media.
+    if service == "instagram" and not image_path:
+        log(f"[{brand}] Buffer/instagram needs an image - not configured")
+        return None
+
+    assets = []
+    if image_path:
+        assets.append({"image": {
+            "url": asset_url(image_path),
+            "metadata": {"altText": (alt_text or text or brand)[:400]},
+        }})
+
+    variables = {"input": {
+        "channelId": channel,
+        "text": (text or "")[:2200],
+        "assets": assets,
+        "mode": "shareNow",
+        "schedulingType": "automatic",
+        "needsApproval": False,
+        "source": "ora-auto",
+    }}
+    if service == "instagram":
+        variables["input"]["metadata"] = {"instagram": {
+            "shouldShareToFeed": True,
+            "type": ig_post_type(image_path),
+        }}
+
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Buffer/{service} ({ig_post_type(image_path)}): {(text or '')[:60]}...")
+        return True
+
+    data, err = buffer_gql(CREATE_POST, variables)
+    if err:
+        log(f"[{brand}] Buffer/{service} FAIL: {err}")
+        return False
+    created = ((data or {}).get("createPost") or {}).get("post") or {}
+    log(f"[{brand}] Buffer/{service} posted OK "
+        f"(id={created.get('id', '?')} status={created.get('status', '?')})")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Platform routing
+#
+# Pinterest is unreachable: the developer app was denied API access and the
+# Buffer plan has no Pinterest channel. Rather than let 42 queued pins fail
+# silently every day, route them to the channels that do work.
+#
+# Instagram is rate-limited on purpose. The queue holds roughly five pins a
+# day; pushing all of them to a young Instagram account is a good way to get
+# throttled, so the overflow goes to Bluesky only. Raise or disable the cap
+# with BUFFER_IG_DAILY_CAP (0 = unlimited).
+# ---------------------------------------------------------------------------
+
+PINTEREST_FALLBACK = ["buffer_instagram", "bluesky"]
+IG_DAILY_CAP = int(os.environ.get("BUFFER_IG_DAILY_CAP", "2"))
+_ig_sent_today = 0
+
+
+# ---------------------------------------------------------------------------
+# Delivery ledger
+#
+# Two schedulers have historically fired at :05 (this workflow and a legacy
+# n8n flow), and GitHub reruns a failed job on demand. Either can publish the
+# same block twice. The ledger makes delivery idempotent: a given post is only
+# ever sent once per platform, no matter how many times the tick runs.
+# ---------------------------------------------------------------------------
+
+import hashlib
+import json
+
+LEDGER = LOG_DIR / "posted.json"
+
+
+def load_ledger():
+    try:
+        return set(json.loads(LEDGER.read_text()))
+    except Exception:
+        return set()
+
+
+def post_key(brand, post, platform):
+    digest = hashlib.sha1((post["body"] or "").encode()).hexdigest()[:10]
+    date = dt.datetime.utcnow().strftime("%Y-%m-%d")
+    return f"{date}|{brand}|{post['hour']:02d}|{platform}|{digest}"
+
+
+def save_ledger(keys):
+    # Keep the file from growing without bound; 30 days is plenty to cover
+    # any realistic duplicate window.
+    cutoff = (dt.datetime.utcnow() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
+    keep = sorted(k for k in keys if k.split("|", 1)[0] >= cutoff)
+    LEDGER.write_text(json.dumps(keep, indent=0))
+
+
 # TikTok is only enabled for Ora (handle @toolstack-y4g).
 # Grissom Press and Family Book do not have TikTok accounts by design.
 TIKTOK_ALLOWED_BRANDS = {"ora"}
 
+
+def outcome(res, detail=""):
+    """Three states, not two. None means the platform was never configured, so
+    it is a skip; only an attempted-and-refused post counts as a failure."""
+    if res is None:
+        return "skip", (detail or "not configured")
+    return ("ok" if res else "fail"), detail
+
+
+def deliver(brand, post, platform):
+    """Send one post to one platform. Returns (status, detail) where status is
+    'ok', 'fail', or 'skip'. Every branch must return - a platform that falls
+    through silently is exactly the bug this rewrite exists to kill."""
+    global _ig_sent_today
+    body = post["body"]
+    image = post.get("image")
+
+    if platform == "bluesky":
+        return outcome(post_bluesky(brand, body))
+
+    if platform == "x":
+        return "skip", "X is manual-only by policy"
+
+    if platform == "linkedin":
+        return outcome(post_linkedin(brand, body))
+
+    if platform == "threads":
+        return outcome(post_threads(brand, body))
+
+    if platform == "instagram":
+        # Prefer Buffer; the direct Meta Graph route needs an app review this
+        # account does not have. Fall back to it only if Buffer is unconfigured.
+        if buffer_token() and BUFFER_CHANNELS.get("instagram"):
+            return outcome(post_buffer(brand, body, image, "instagram"), "via Buffer")
+        return outcome(post_instagram(brand, body, image), "via Meta Graph")
+
+    if platform == "buffer_instagram":
+        if IG_DAILY_CAP and _ig_sent_today >= IG_DAILY_CAP:
+            return "skip", f"Instagram daily cap reached ({IG_DAILY_CAP})"
+        res = post_buffer(brand, body, image, "instagram")
+        if res:
+            _ig_sent_today += 1
+        return outcome(res, "via Buffer")
+
+    if platform == "pinterest":
+        return "skip", "Pinterest unreachable - rerouted"
+
+    if platform == "tiktok":
+        if brand not in TIKTOK_ALLOWED_BRANDS:
+            return "skip", "TikTok disabled for this brand by policy"
+        return outcome(post_tiktok(brand, body, post.get("video")))
+
+    return "skip", f"unknown platform '{platform}'"
+
+
+def route(platforms):
+    """Expand the queue's declared platforms into ones that can actually
+    publish today. Pinterest fans out to its fallbacks."""
+    out = []
+    for p in platforms:
+        if p == "pinterest":
+            for fb in PINTEREST_FALLBACK:
+                if fb not in out:
+                    out.append(fb)
+        elif p not in out:
+            out.append(p)
+    return out
+
+
+def write_summary(results, hour):
+    """Surface the outcome in the Actions run summary. A green check on a run
+    that published nothing is how five days of failure went unnoticed."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    ok = sum(1 for r in results if r["status"] == "ok")
+    failed = [r for r in results if r["status"] == "fail"]
+    skipped = [r for r in results if r["status"] == "skip"]
+    lines = [
+        f"## Auto-post tick - {hour:02d}:00 UTC",
+        "",
+        f"**{ok} published · {len(failed)} failed · {len(skipped)} skipped**",
+        "",
+    ]
+    if results:
+        lines += ["| Result | Brand | Platform | Detail | Post |",
+                  "|---|---|---|---|---|"]
+        icon = {"ok": "published", "fail": "FAILED", "skip": "skipped"}
+        for r in results:
+            preview = (r["preview"] or "").replace("|", "\\|")[:60]
+            lines.append(f"| {icon[r['status']]} | {r['brand']} | {r['platform']} "
+                         f"| {r['detail']} | {preview} |")
+    else:
+        lines.append("_Nothing was scheduled for this hour._")
+    if failed:
+        lines += ["", "### Failures need attention",
+                  "These posts did not publish and will not be retried automatically."]
+    with open(path, "a") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
-    total_matched = 0
+    ledger = load_ledger()
+    results = []
+
     for brand in BRANDS:
-        posts = parse_today(brand)
-        matched = [p for p in posts if p["hour"] == now.hour]
-        if not matched:
-            continue
-        total_matched += len(matched)
-        for p in matched:
-            log(f"[{brand}] Posting to {p['platforms']}: {p['body'][:80]}...")
-            for plat in p["platforms"]:
-                if plat == "bluesky":
-                    post_bluesky(brand, p["body"])
-                elif plat == "x":
-                    log(f"[{brand}] X is manual-only by policy — skipping auto-post")
-                elif plat == "linkedin":
-                    post_linkedin(brand, p["body"])
-                elif plat == "threads":
-                    post_threads(brand, p["body"])
-                elif plat == "instagram":
-                    post_instagram(brand, p["body"], p.get("image"))
-                elif plat == "pinterest":
-                    post_pinterest(brand, p["body"],
-                                   p.get("pinterest_title")
-                                       or derive_pin_title(p["body"])
-                                       or brand,
-                                   pin_link(brand, p.get("pinterest_url")),
-                                   p.get("image"))
-                elif plat == "tiktok":
-                    if brand not in TIKTOK_ALLOWED_BRANDS:
-                        log(f"[{brand}] TikTok disabled for this brand by policy — skipping")
-                        continue
-                    post_tiktok(brand, p["body"], p.get("video"))
-    if total_matched == 0:
-        log(f"No posts scheduled across any brand for hour {now.hour}")
+        for p in parse_today(brand):
+            if p["hour"] != now.hour:
+                continue
+            targets = route(p["platforms"])
+            log(f"[{brand}] {p['platforms']} -> {targets}: {p['body'][:70]}...")
+            for plat in targets:
+                key = post_key(brand, p, plat)
+                if key in ledger:
+                    log(f"[{brand}] {plat} already delivered this hour - skipping")
+                    continue
+                try:
+                    status, detail = deliver(brand, p, plat)
+                except Exception as e:
+                    status, detail = "fail", f"unhandled: {e}"
+                    log(f"[{brand}] {plat} FAIL (unhandled): {e}")
+                if status == "ok":
+                    ledger.add(key)
+                results.append({"brand": brand, "platform": plat, "status": status,
+                                "detail": detail, "preview": p["body"][:60]})
+
+    save_ledger(ledger)
+
+    ok = sum(1 for r in results if r["status"] == "ok")
+    failed = [r for r in results if r["status"] == "fail"]
+    skipped = sum(1 for r in results if r["status"] == "skip")
+    log(f"Tick complete: {ok} published, {len(failed)} failed, {skipped} skipped")
+    write_summary(results, now.hour)
+
+    if failed:
+        for r in failed:
+            log(f"FAILED: {r['brand']}/{r['platform']} {r['detail']}")
+        # Exit non-zero so the run goes red. Silent green runs are why the
+        # Pinterest outage ran for five days without anyone noticing.
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
