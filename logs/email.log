@@ -502,3 +502,8 @@
 [2026-08-10T12:26:06.416177Z] [email] [grissom] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-10T12:26:06.416307Z] [email] [familybook] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
 [2026-08-10T12:26:06.416390Z] [email] TOTAL: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-10T14:00:30.694214Z] [email] Email tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-10T14:00:30.694471Z] [email] [ora] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-10T14:00:30.694581Z] [email] [grissom] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-10T14:00:30.694674Z] [email] [familybook] summary: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
+[2026-08-10T14:00:30.694738Z] [email] TOTAL: {'drafts': 0, 'sent': 0, 'scheduled': 0, 'dry-run': 0, 'skipped-duplicate': 0, 'skipped-config': 0, 'invalid': 0}
