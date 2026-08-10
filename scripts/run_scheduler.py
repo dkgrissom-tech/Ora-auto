@@ -413,7 +413,101 @@ BUFFER_CHANNELS = {
     "instagram": os.environ.get("BUFFER_CHANNEL_INSTAGRAM", "6a4aa7984048344628728874"),
     "tiktok":    os.environ.get("BUFFER_CHANNEL_TIKTOK",    "6a236b76c687a22dd4667858"),
     "youtube":   os.environ.get("BUFFER_CHANNEL_YOUTUBE",   "6a4aa6ec40483446287286c9"),
+    # No hardcoded default: Pinterest was not connected in Buffer when the
+    # others were resolved. Left blank so resolve_buffer_pinterest() discovers
+    # it the moment the channel is connected, with no code change needed.
+    "pinterest": os.environ.get("BUFFER_CHANNEL_PINTEREST", ""),
 }
+
+# Cache the lookup for the life of the process. One Actions run publishes a
+# handful of posts and the channel list will not change mid-run.
+_buffer_pinterest = "unresolved"
+
+
+def resolve_buffer_pinterest():
+    """Return (channel_id, board_service_id) for Pinterest via Buffer, or None.
+
+    Both values are discovered from the live account so that connecting
+    Pinterest in Buffer is the only action required - no IDs to copy into
+    secrets. Env vars still win if either needs pinning down:
+      BUFFER_CHANNEL_PINTEREST    channel id
+      BUFFER_PINTEREST_BOARD      board name to match, or a board id
+    """
+    global _buffer_pinterest
+    if _buffer_pinterest != "unresolved":
+        return _buffer_pinterest
+
+    _buffer_pinterest = None
+    if not buffer_token():
+        return None
+
+    want_board = (os.environ.get("BUFFER_PINTEREST_BOARD") or "").strip()
+    data, err = buffer_gql(CHANNELS_WITH_BOARDS, {})
+    if err:
+        log(f"Buffer channel lookup failed: {err}")
+        return None
+
+    pins = [c for c in ((data or {}).get("channels") or [])
+            if (c.get("service") or "").lower() == "pinterest"]
+    if not pins:
+        log("Buffer has no Pinterest channel connected - "
+            "connect it at buffer.com to restore the Pinterest slot")
+        return None
+
+    ch = pins[0]
+    if os.environ.get("BUFFER_CHANNEL_PINTEREST"):
+        ch = next((c for c in pins
+                   if c.get("id") == os.environ["BUFFER_CHANNEL_PINTEREST"]), ch)
+    if len(pins) > 1:
+        log(f"Buffer has {len(pins)} Pinterest channels; using "
+            f"{ch.get('name') or ch.get('id')}. Set BUFFER_CHANNEL_PINTEREST to pin it.")
+    if ch.get("isDisconnected"):
+        log(f"Buffer Pinterest channel {ch.get('name') or ch.get('id')} "
+            "is disconnected - reconnect it at buffer.com")
+        return None
+
+    boards = (((ch.get("metadata") or {}).get("boards")) or [])
+    board = None
+    if want_board:
+        board = next((b for b in boards
+                      if want_board.lower() in (b.get("name") or "").lower()
+                      or want_board in (b.get("serviceId") or "")), None)
+        if board is None:
+            log(f"BUFFER_PINTEREST_BOARD={want_board!r} matched none of "
+                f"{[b.get('name') for b in boards]}")
+    if board is None and boards:
+        board = boards[0]
+        if len(boards) > 1:
+            log(f"Pinning to board {board.get('name')!r} of "
+                f"{[b.get('name') for b in boards]}. "
+                "Set BUFFER_PINTEREST_BOARD to choose another.")
+
+    if not boards:
+        # Buffer can publish to the channel default when no board is given.
+        log("Buffer Pinterest channel reports no boards - letting Buffer "
+            "choose the destination board")
+
+    _buffer_pinterest = (ch.get("id"), (board or {}).get("serviceId"))
+    log(f"Buffer Pinterest resolved: channel={ch.get('name') or ch.get('id')} "
+        f"board={(board or {}).get('name') or 'default'}")
+    return _buffer_pinterest
+
+
+CHANNELS_WITH_BOARDS = """
+query ChannelsWithBoards {
+  channels {
+    id
+    name
+    service
+    isDisconnected
+    metadata {
+      ... on PinterestMetadata {
+        boards { id name serviceId }
+      }
+    }
+  }
+}
+"""
 
 
 def buffer_token():
@@ -495,7 +589,8 @@ def ig_post_type(image_path):
     return "post"
 
 
-def post_buffer(brand, text, image_path, service="instagram", alt_text=None):
+def post_buffer(brand, text, image_path, service="instagram", alt_text=None,
+                pin_title=None, pin_url=None, board_id=None):
     """Publish immediately through Buffer to one connected channel."""
     channel = BUFFER_CHANNELS.get(service)
     token = buffer_token()
@@ -505,9 +600,9 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None):
     if not channel:
         log(f"[{brand}] Buffer has no {service} channel configured")
         return None
-    # Instagram will not accept a post with no media.
-    if service == "instagram" and not image_path:
-        log(f"[{brand}] Buffer/instagram needs an image - not configured")
+    # Neither Instagram nor Pinterest will accept a post with no media.
+    if service in ("instagram", "pinterest") and not image_path:
+        log(f"[{brand}] Buffer/{service} needs an image - not configured")
         return None
 
     assets = []
@@ -531,9 +626,24 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None):
             "shouldShareToFeed": True,
             "type": ig_post_type(image_path),
         }}
+    elif service == "pinterest":
+        # A pin with no title and no destination link cannot drive anything, so
+        # both are always populated - title derived from the body when the queue
+        # entry omits it, link falling back to the brand's canonical page.
+        meta = {"title": (pin_title or derive_pin_title(text) or brand)[:100]}
+        link = pin_link(brand, pin_url)
+        if link:
+            meta["url"] = link
+        if board_id:
+            meta["boardServiceId"] = board_id
+        variables["input"]["metadata"] = {"pinterest": meta}
 
     if DRY_RUN:
-        log(f"[{brand}] [DRY] Buffer/{service} ({ig_post_type(image_path)}): {(text or '')[:60]}...")
+        shape = (variables["input"].get("metadata") or {}).get(service) or {}
+        detail = (f"title={shape.get('title')!r} url={shape.get('url')} "
+                  f"board={shape.get('boardServiceId') or 'default'}"
+                  if service == "pinterest" else ig_post_type(image_path))
+        log(f"[{brand}] [DRY] Buffer/{service} ({detail}): {(text or '')[:60]}...")
         return True
 
     data, err = buffer_gql(CREATE_POST, variables)
@@ -682,8 +792,26 @@ def deliver(brand, post, platform):
             _ig_sent_today += 1
         return outcome(res, "via Buffer")
 
-    if platform == "pinterest":
-        return "skip", "Pinterest unreachable - rerouted"
+    if platform in ("pinterest", "buffer_pinterest"):
+        # Pinterest's own API returns 401 behind an app review this account does
+        # not have, so publish through Buffer, which already carries Instagram,
+        # TikTok and YouTube for this org. route() only sends the slot here when
+        # a Pinterest channel actually resolves; otherwise it fans out to
+        # PINTEREST_FALLBACK and this branch is never reached.
+        resolved = resolve_buffer_pinterest()
+        if not resolved:
+            return "skip", "no Buffer Pinterest channel - rerouted"
+        channel_id, board_id = resolved
+        prev = BUFFER_CHANNELS.get("pinterest")
+        BUFFER_CHANNELS["pinterest"] = channel_id
+        try:
+            res = post_buffer(brand, body, image, "pinterest",
+                              pin_title=post.get("pinterest_title"),
+                              pin_url=post.get("pinterest_url"),
+                              board_id=board_id)
+        finally:
+            BUFFER_CHANNELS["pinterest"] = prev
+        return outcome(res, "via Buffer")
 
     if platform == "tiktok":
         if brand not in TIKTOK_ALLOWED_BRANDS:
@@ -699,6 +827,14 @@ def route(platforms):
     out = []
     for p in platforms:
         if p == "pinterest":
+            # Only fan out when Pinterest genuinely has nowhere to go. With a
+            # Buffer Pinterest channel connected the slot publishes for real,
+            # and the reroute - which miscrops 2:3 pins into Instagram's 4:5 -
+            # stops entirely.
+            if resolve_buffer_pinterest():
+                if "buffer_pinterest" not in out:
+                    out.append("buffer_pinterest")
+                continue
             for fb in PINTEREST_FALLBACK:
                 if fb not in out:
                     out.append(fb)
