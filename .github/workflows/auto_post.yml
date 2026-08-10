@@ -55,6 +55,9 @@ jobs:
           ORA_THREADS_USER_ID:        ${{ secrets.ORA_THREADS_USER_ID }}
           ORA_PINTEREST_ACCESS_TOKEN: ${{ secrets.ORA_PINTEREST_ACCESS_TOKEN }}
           ORA_PINTEREST_BOARD_ID:     ${{ secrets.ORA_PINTEREST_BOARD_ID }}
+          ORA_PINTEREST_REFRESH_TOKEN: ${{ secrets.ORA_PINTEREST_REFRESH_TOKEN }}
+          ORA_PINTEREST_APP_ID: ${{ secrets.ORA_PINTEREST_APP_ID }}
+          ORA_PINTEREST_APP_SECRET: ${{ secrets.ORA_PINTEREST_APP_SECRET }}
           ORA_TIKTOK_ACCESS_TOKEN:    ${{ secrets.ORA_TIKTOK_ACCESS_TOKEN }}
 
           # ===== GRISSOM PRESS =====
@@ -67,6 +70,9 @@ jobs:
           GRISSOM_THREADS_USER_ID:        ${{ secrets.GRISSOM_THREADS_USER_ID }}
           GRISSOM_PINTEREST_ACCESS_TOKEN: ${{ secrets.GRISSOM_PINTEREST_ACCESS_TOKEN }}
           GRISSOM_PINTEREST_BOARD_ID:     ${{ secrets.GRISSOM_PINTEREST_BOARD_ID }}
+          GRISSOM_PINTEREST_REFRESH_TOKEN: ${{ secrets.GRISSOM_PINTEREST_REFRESH_TOKEN }}
+          GRISSOM_PINTEREST_APP_ID: ${{ secrets.GRISSOM_PINTEREST_APP_ID }}
+          GRISSOM_PINTEREST_APP_SECRET: ${{ secrets.GRISSOM_PINTEREST_APP_SECRET }}
           GRISSOM_TIKTOK_ACCESS_TOKEN:    ${{ secrets.GRISSOM_TIKTOK_ACCESS_TOKEN }}
           # Tumblr is OAuth 1.0a, so it needs the app pair AND the token pair.
           # All five must be set or post_tumblr skips and says which are missing.
@@ -86,6 +92,9 @@ jobs:
           FAMILYBOOK_THREADS_USER_ID:        ${{ secrets.FAMILYBOOK_THREADS_USER_ID }}
           FAMILYBOOK_PINTEREST_ACCESS_TOKEN: ${{ secrets.FAMILYBOOK_PINTEREST_ACCESS_TOKEN }}
           FAMILYBOOK_PINTEREST_BOARD_ID:     ${{ secrets.FAMILYBOOK_PINTEREST_BOARD_ID }}
+          FAMILYBOOK_PINTEREST_REFRESH_TOKEN: ${{ secrets.FAMILYBOOK_PINTEREST_REFRESH_TOKEN }}
+          FAMILYBOOK_PINTEREST_APP_ID: ${{ secrets.FAMILYBOOK_PINTEREST_APP_ID }}
+          FAMILYBOOK_PINTEREST_APP_SECRET: ${{ secrets.FAMILYBOOK_PINTEREST_APP_SECRET }}
           FAMILYBOOK_TIKTOK_ACCESS_TOKEN:    ${{ secrets.FAMILYBOOK_TIKTOK_ACCESS_TOKEN }}
 
         run: python scripts/run_scheduler.py

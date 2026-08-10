@@ -316,18 +316,88 @@ def post_instagram(brand, text, image_path):
         log(f"[{brand}] Instagram FAIL: {e}")
         return False
 
+PINTEREST_TOKEN_URL = "https://api.pinterest.com/v5/oauth/token"
+
+# Fresh access tokens are fetched once per brand per process. Every workflow tick
+# is a fresh process, so this is a within-run cache only — it deliberately does
+# NOT try to persist across runs (see the _ig_sent_today bug in docs/).
+_pin_tokens = {}
+
+
+def pinterest_refresh(brand):
+    """Exchange the 1-year refresh token for a fresh 30-day access token.
+
+    Pinterest v5 access tokens expire after 30 days. Returns None when refresh
+    is not configured or the exchange fails, so callers fall back to the static
+    PINTEREST_ACCESS_TOKEN rather than losing the slot.
+    """
+    import base64
+    import requests
+    refresh = secret(brand, "PINTEREST_REFRESH_TOKEN")
+    app_id = secret(brand, "PINTEREST_APP_ID")
+    app_secret = secret(brand, "PINTEREST_APP_SECRET")
+    if not (refresh and app_id and app_secret):
+        return None
+    basic = base64.b64encode(f"{app_id}:{app_secret}".encode()).decode()
+    try:
+        r = requests.post(
+            PINTEREST_TOKEN_URL,
+            headers={"Authorization": f"Basic {basic}",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+            data={"grant_type": "refresh_token", "refresh_token": refresh},
+            timeout=30,
+        )
+        if r.status_code == 200:
+            tok = (r.json() or {}).get("access_token")
+            if tok:
+                log(f"[{brand}] Pinterest token refreshed")
+                return tok
+            log(f"[{brand}] Pinterest refresh: 200 but no access_token in body")
+            return None
+        log(f"[{brand}] Pinterest refresh FAIL: {r.status_code} {r.text[:200]}")
+        return None
+    except Exception as e:
+        log(f"[{brand}] Pinterest refresh FAIL: {e}")
+        return None
+
+
+def pinterest_token(brand):
+    """Refresh-first, static-token fallback. Cached per brand for this run."""
+    if brand in _pin_tokens:
+        return _pin_tokens[brand]
+    tok = pinterest_refresh(brand) or secret(brand, "PINTEREST_ACCESS_TOKEN")
+    _pin_tokens[brand] = tok
+    return tok
+
+
+def pinterest_configured(brand):
+    """True when either a static token or a full refresh triple is present.
+
+    Checked before any network call so DRY_RUN never hits the token endpoint.
+    """
+    return bool(
+        secret(brand, "PINTEREST_ACCESS_TOKEN")
+        or (secret(brand, "PINTEREST_REFRESH_TOKEN")
+            and secret(brand, "PINTEREST_APP_ID")
+            and secret(brand, "PINTEREST_APP_SECRET"))
+    )
+
+
 def post_pinterest(brand, text, title, dest_url, image_path):
     import requests
-    token = secret(brand, "PINTEREST_ACCESS_TOKEN")
     board = secret(brand, "PINTEREST_BOARD_ID")
     title = title or brand
     dest_url = dest_url or ""
-    if not (token and board and image_path):
+    if not (pinterest_configured(brand) and board and image_path):
         log(f"[{brand}] Pinterest missing keys/image — not configured")
         return None
     if DRY_RUN:
         log(f"[{brand}] [DRY] Pinterest pin: {title}")
         return True
+    token = pinterest_token(brand)
+    if not token:
+        log(f"[{brand}] Pinterest no usable token (refresh failed, no static fallback)")
+        return False
     try:
         r = requests.post(
             "https://api.pinterest.com/v5/pins",
