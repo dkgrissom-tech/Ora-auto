@@ -583,11 +583,52 @@ query ChannelsWithBoards {
 """
 
 
+BUFFER_TOKEN_CANONICAL = "BUFFER_ACCESS_TOKEN"
+BUFFER_TOKEN_LEGACY = "BUFFER_ACCESS_TOKE"
+
+_warned = set()
+
+
+def warn(msg):
+    """Log once per run, and surface it in the GitHub Actions run annotation.
+
+    Plain log lines scroll past unread — the truncated Buffer secret name lived
+    for a day behind a silent fallback. ::warning:: puts it on the run summary.
+    """
+    if msg in _warned:
+        return
+    _warned.add(msg)
+    log(f"WARNING: {msg}")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning::{msg}", flush=True)
+
+
 def buffer_token():
-    # The secret was saved with a truncated name in GitHub; accept both so a
-    # rename does not silently disable posting.
-    return (os.environ.get("BUFFER_ACCESS_TOKEN")
-            or os.environ.get("BUFFER_ACCESS_TOKE") or "").strip()
+    """Buffer API token, canonical name first.
+
+    The secret was originally saved under the truncated name BUFFER_ACCESS_TOKE.
+    Both are accepted so a rename can never disable publishing mid-flight, but
+    relying on the truncated one now warns every run. A fallback that says
+    nothing is how a typo survives.
+    """
+    canonical = (os.environ.get(BUFFER_TOKEN_CANONICAL) or "").strip()
+    legacy = (os.environ.get(BUFFER_TOKEN_LEGACY) or "").strip()
+    if canonical:
+        if legacy and legacy != canonical:
+            warn(f"{BUFFER_TOKEN_LEGACY} is set and differs from "
+                 f"{BUFFER_TOKEN_CANONICAL}. Using {BUFFER_TOKEN_CANONICAL}. "
+                 f"Delete the truncated secret.")
+        elif legacy:
+            warn(f"{BUFFER_TOKEN_LEGACY} is redundant now that "
+                 f"{BUFFER_TOKEN_CANONICAL} is set. Delete the truncated secret.")
+        return canonical
+    if legacy:
+        warn(f"Buffer token found only under the truncated name "
+             f"{BUFFER_TOKEN_LEGACY}. Add {BUFFER_TOKEN_CANONICAL} with the same "
+             f"value, then delete {BUFFER_TOKEN_LEGACY}. Publishing works for now "
+             f"but depends on a misspelled secret.")
+        return legacy
+    return ""
 
 
 def buffer_gql(query, variables, attempts=4):
