@@ -89,6 +89,7 @@ def parse_today(brand):
             "hour": hh,
             "platforms": [p.strip() for p in meta.get("platforms", "").split(",") if p.strip()],
             "image": meta.get("image"),
+            "alt": meta.get("alt"),
             "video": meta.get("video"),
             "pinterest_title": meta.get("pinterest_title"),
             "pinterest_url": meta.get("pinterest_url"),
@@ -127,7 +128,34 @@ def pin_link(brand, dest_url):
 def asset_url(path):
     return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
 
-def post_bluesky(brand, text):
+# Bluesky uploads images as blobs rather than by URL, and the PDS rejects any
+# blob over ~976KB. Every other platform here takes an asset_url() instead, so
+# this is the only path that needs the actual bytes.
+BLUESKY_BLOB_LIMIT = 976_560
+
+def load_asset_bytes(brand, path):
+    """Return raw bytes for a repo-relative asset path, or None.
+
+    Prefers the local checkout: Actions already has the file, so this avoids
+    both a network round trip and raw.githubusercontent's propagation delay on
+    freshly committed assets. Falls back to HTTP for assets that exist upstream
+    but not in this checkout."""
+    if not path:
+        return None
+    local = ROOT / path
+    if local.exists():
+        return local.read_bytes()
+    try:
+        import requests
+        r = requests.get(asset_url(path), timeout=30)
+        if r.status_code == 200:
+            return r.content
+        log(f"[{brand}] asset fetch got {r.status_code} for {path}")
+    except Exception as e:
+        log(f"[{brand}] asset fetch failed for {path}: {e}")
+    return None
+
+def post_bluesky(brand, text, image_path=None, alt_text=None):
     from atproto import Client
     handle_raw = secret(brand, "BLUESKY_HANDLE") or ""
     password_raw = secret(brand, "BLUESKY_APP_PASSWORD") or ""
@@ -152,14 +180,37 @@ def post_bluesky(brand, text):
     pw_len = len(password)
     pw_hyphens = password.count("-")
     log(f"[{brand}] Bluesky login fingerprint: handle_len={h_len} dots={h_dots} ends_bsky_social={h_endswith_bsky} pw_len={pw_len} pw_hyphens={pw_hyphens}")
+    # Resolve the image before the DRY_RUN gate so a dry run surfaces a missing
+    # or oversized asset instead of hiding it until the first real post.
+    blob = load_asset_bytes(brand, image_path) if image_path else None
+    if image_path and blob is None:
+        log(f"[{brand}] Bluesky image {image_path} unavailable - posting text only")
+    if blob and len(blob) > BLUESKY_BLOB_LIMIT:
+        log(f"[{brand}] Bluesky image {image_path} is {len(blob)}B, over the "
+            f"{BLUESKY_BLOB_LIMIT}B blob limit - posting text only. "
+            f"Re-export it smaller.")
+        blob = None
+
+    # Bluesky shows alt text prominently and flags images without it.
+    alt = (alt_text or "").strip()
+    if blob and not alt:
+        alt = derive_pin_title(text)
+        log(f"[{brand}] Bluesky alt text derived from body - add 'alt:' to the "
+            f"queue entry for a real image description")
+
     if DRY_RUN:
-        log(f"[{brand}] [DRY] Bluesky post: {text[:60]}...")
+        detail = f" with image {image_path} ({len(blob)}B)" if blob else ""
+        log(f"[{brand}] [DRY] Bluesky post{detail}: {text[:60]}...")
         return True
     try:
         client = Client()
         client.login(handle, password)
-        client.send_post(text=text[:300])
-        log(f"[{brand}] Bluesky posted OK")
+        if blob:
+            client.send_image(text=text[:300], image=blob, image_alt=alt[:1000])
+            log(f"[{brand}] Bluesky posted OK with image {image_path}")
+        else:
+            client.send_post(text=text[:300])
+            log(f"[{brand}] Bluesky posted OK")
         return True
     except Exception as e:
         log(f"[{brand}] Bluesky FAIL: {e}")
@@ -605,7 +656,7 @@ def deliver(brand, post, platform):
     image = post.get("image")
 
     if platform == "bluesky":
-        return outcome(post_bluesky(brand, body))
+        return outcome(post_bluesky(brand, body, image, post.get("alt")))
 
     if platform == "x":
         return "skip", "X is manual-only by policy"
