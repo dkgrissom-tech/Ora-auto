@@ -90,6 +90,9 @@ def parse_today(brand):
             "platforms": [p.strip() for p in meta.get("platforms", "").split(",") if p.strip()],
             "image": meta.get("image"),
             "alt": meta.get("alt"),
+            # Tumblr discovery is tag-driven, so a Tumblr post with no tags is
+            # nearly invisible.
+            "tags": meta.get("tags"),
             "video": meta.get("video"),
             "pinterest_title": meta.get("pinterest_title"),
             "pinterest_url": meta.get("pinterest_url"),
@@ -682,7 +685,191 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None,
 
 PINTEREST_FALLBACK = ["buffer_instagram", "bluesky"]
 IG_DAILY_CAP = int(os.environ.get("BUFFER_IG_DAILY_CAP", "2"))
-_ig_sent_today = 0
+
+# Both routes land on the same Instagram account, so both consume the same
+# daily budget and both must be counted. Only the reroute is capped, though -
+# see the buffer_instagram branch in deliver().
+IG_PLATFORMS = ("instagram", "buffer_instagram")
+
+# Deliveries made earlier in *this process*. The ledger is only written once,
+# at the end of main(), so within a single run it cannot see posts this run
+# already made. The real count is ledger + this.
+_ig_sent_this_run = 0
+
+
+def ig_sent_today(ledger=None):
+    """Count today's Instagram deliveries from the delivery ledger.
+
+    This used to be a bare module-level counter, which meant it reset on every
+    process start - and every cron tick is a new process, so a "daily" cap of 2
+    was really a per-run cap of 2. Reading the ledger makes it genuinely daily
+    across runs.
+    """
+    today = dt.datetime.utcnow().strftime("%Y-%m-%d")
+    keys = load_ledger() if ledger is None else ledger
+    n = 0
+    for k in keys:
+        parts = k.split("|")
+        if len(parts) >= 4 and parts[0] == today and parts[3] in IG_PLATFORMS:
+            n += 1
+    return n + _ig_sent_this_run
+
+
+# ---------------------------------------------------------------------------
+# Tumblr
+#
+# Tumblr is OAuth 1.0a only - there is no app-password or bearer-token path -
+# so requests must be signed. auto_post.yml installs only `requests atproto`,
+# and pulling in a signing library would make every run depend on it, so the
+# signature is built from the standard library instead. Same reasoning that
+# keeps PIL out of this file.
+# ---------------------------------------------------------------------------
+
+TUMBLR_API = "https://api.tumblr.com/v2"
+
+
+def _oauth_quote(s):
+    """RFC 3986 percent-encoding. urllib's default safe set is wrong for OAuth:
+    it leaves '/' unescaped and escapes '~'."""
+    import urllib.parse
+    return urllib.parse.quote(str(s), safe="~")
+
+
+def oauth1_header(method, url, params, consumer_key, consumer_secret,
+                  token, token_secret, nonce=None, timestamp=None):
+    """Build an OAuth 1.0a HMAC-SHA1 Authorization header.
+
+    `params` must be every form-encoded body parameter plus any query
+    parameters - for x-www-form-urlencoded bodies the spec folds them into the
+    signature base string, and omitting them yields a 401.
+    """
+    import base64
+    import hashlib
+    import hmac
+    import secrets
+    import time
+
+    oauth = {
+        "oauth_consumer_key": consumer_key,
+        "oauth_nonce": nonce or secrets.token_hex(16),
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(timestamp or int(time.time())),
+        "oauth_token": token,
+        "oauth_version": "1.0",
+    }
+
+    # Parameters are sorted after encoding, by key then value.
+    joined = "&".join(
+        f"{k}={v}" for k, v in sorted(
+            (_oauth_quote(k), _oauth_quote(v))
+            for k, v in list(params.items()) + list(oauth.items())
+        )
+    )
+    base = "&".join([method.upper(), _oauth_quote(url), _oauth_quote(joined)])
+    signing_key = f"{_oauth_quote(consumer_secret)}&{_oauth_quote(token_secret)}"
+    oauth["oauth_signature"] = base64.b64encode(
+        hmac.new(signing_key.encode(), base.encode(), hashlib.sha1).digest()
+    ).decode()
+
+    inner = ", ".join(f'{_oauth_quote(k)}="{_oauth_quote(v)}"'
+                      for k, v in sorted(oauth.items()))
+    return f"OAuth {inner}"
+
+
+def tumblr_caption(text, link):
+    """Tumblr renders HTML, not markdown. Turn blank-line-separated prose into
+    paragraphs and append the destination link, since a post with no link
+    cannot drive anything."""
+    import html
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", text or "") if b.strip()]
+    out = ["<p>" + html.escape(b).replace("\n", "<br>") + "</p>" for b in blocks]
+    if link:
+        out.append(f'<p><a href="{html.escape(link)}">{html.escape(link)}</a></p>')
+    return "".join(out)
+
+
+def post_tumblr(brand, text, image_path=None, tags=None, dest_url=None):
+    """Publish to Tumblr via the legacy /post endpoint.
+
+    Legacy rather than NPF deliberately: type=photo accepts `source` as a remote
+    image URL, so the asset rides the same public raw.githubusercontent path
+    every platform except Bluesky already uses. NPF would require a multipart
+    media upload for the same result.
+    """
+    import requests
+
+    blog = secret(brand, "TUMBLR_BLOG")
+    ck = secret(brand, "TUMBLR_CONSUMER_KEY")
+    cs = secret(brand, "TUMBLR_CONSUMER_SECRET")
+    tok = secret(brand, "TUMBLR_OAUTH_TOKEN")
+    ts = secret(brand, "TUMBLR_OAUTH_TOKEN_SECRET")
+
+    missing = [n for n, v in (("TUMBLR_BLOG", blog), ("TUMBLR_CONSUMER_KEY", ck),
+                              ("TUMBLR_CONSUMER_SECRET", cs),
+                              ("TUMBLR_OAUTH_TOKEN", tok),
+                              ("TUMBLR_OAUTH_TOKEN_SECRET", ts)) if not v]
+    if missing:
+        log(f"[{brand}] Tumblr not configured - missing "
+            f"{', '.join(f'{brand.upper()}_{m}' for m in missing)}")
+        return None
+
+    link = dest_url or pin_link(brand, None)
+    body = {"state": "published", "format": "html"}
+    if tags:
+        body["tags"] = tags if isinstance(tags, str) else ",".join(tags)
+
+    if image_path:
+        body.update({
+            "type": "photo",
+            "source": asset_url(image_path),
+            "caption": tumblr_caption(text, link),
+        })
+        if link:
+            body["link"] = link
+    else:
+        # A photo post with no photo is rejected, so fall back to text rather
+        # than sending an invalid payload.
+        title = derive_pin_title(text)
+        body.update({"type": "text", "body": tumblr_caption(text, link)})
+        if title:
+            body["title"] = title[:120]
+
+    url = f"{TUMBLR_API}/blog/{blog}/post"
+
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Tumblr {body['type']} to {blog}"
+            + (f" src={body.get('source')}" if image_path else "")
+            + f" link={link or 'none'}: {(text or '')[:60]}...")
+        return True
+
+    try:
+        r = requests.post(
+            url, data=body, timeout=45,
+            headers={"Authorization": oauth1_header("POST", url, body, ck, cs, tok, ts),
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+    except Exception as e:
+        log(f"[{brand}] Tumblr FAIL: transport: {e}")
+        return False
+
+    if r.status_code in (200, 201):
+        try:
+            pid = ((r.json() or {}).get("response") or {}).get("id_string", "?")
+        except Exception:
+            pid = "?"
+        log(f"[{brand}] Tumblr posted OK (id={pid} blog={blog})")
+        return True
+
+    # 401 here is almost always a dead token rather than a bad signature, but
+    # both look identical from outside, so say so instead of guessing.
+    hint = ""
+    if r.status_code == 401:
+        hint = (" - the OAuth token or the signature was rejected; re-mint the "
+                "token at tumblr.com/oauth/apps if it was working before")
+    elif r.status_code == 404:
+        hint = f" - blog '{blog}' not found; TUMBLR_BLOG wants the full host, e.g. name.tumblr.com"
+    log(f"[{brand}] Tumblr FAIL: {r.status_code} {r.text[:200]}{hint}")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -726,9 +913,10 @@ def save_ledger(keys):
     LEDGER.write_text(json.dumps(keep, indent=0))
 
 
-# TikTok is only enabled for Ora (handle @toolstack-y4g).
-# Grissom Press and Family Book do not have TikTok accounts by design.
-TIKTOK_ALLOWED_BRANDS = {"ora"}
+# TikTok is only enabled for Ora (handle @toolstack-y4g). Defined in
+# brand_policy so the ingester enforces the same rule - it previously allowed
+# grissom, which queued posts this script then skipped every single day.
+from brand_policy import TIKTOK_ALLOWED_BRANDS  # noqa: E402
 
 
 def plain(text):
@@ -761,7 +949,7 @@ def deliver(brand, post, platform):
     """Send one post to one platform. Returns (status, detail) where status is
     'ok', 'fail', or 'skip'. Every branch must return - a platform that falls
     through silently is exactly the bug this rewrite exists to kill."""
-    global _ig_sent_today
+    global _ig_sent_this_run
     body = plain(post["body"])
     image = post.get("image")
 
@@ -781,15 +969,26 @@ def deliver(brand, post, platform):
         # Prefer Buffer; the direct Meta Graph route needs an app review this
         # account does not have. Fall back to it only if Buffer is unconfigured.
         if buffer_token() and BUFFER_CHANNELS.get("instagram"):
-            return outcome(post_buffer(brand, body, image, "instagram"), "via Buffer")
-        return outcome(post_instagram(brand, body, image), "via Meta Graph")
+            res = post_buffer(brand, body, image, "instagram")
+        else:
+            res = post_instagram(brand, body, image)
+        if res:
+            # Counts toward today's budget even though it is never capped, so a
+            # scheduled post plus reroutes cannot together overrun the account.
+            _ig_sent_this_run += 1
+        return outcome(res, "via Buffer" if buffer_token() else "via Meta Graph")
 
     if platform == "buffer_instagram":
-        if IG_DAILY_CAP and _ig_sent_today >= IG_DAILY_CAP:
-            return "skip", f"Instagram daily cap reached ({IG_DAILY_CAP})"
+        # Only the Pinterest reroute is capped. A post explicitly scheduled to
+        # Instagram is a deliberate editorial choice and always goes; the cap
+        # exists to stop rerouted pins from flooding the account.
+        sent = ig_sent_today()
+        if IG_DAILY_CAP and sent >= IG_DAILY_CAP:
+            return "skip", (f"Instagram daily cap reached "
+                            f"({sent}/{IG_DAILY_CAP} today)")
         res = post_buffer(brand, body, image, "instagram")
         if res:
-            _ig_sent_today += 1
+            _ig_sent_this_run += 1
         return outcome(res, "via Buffer")
 
     if platform in ("pinterest", "buffer_pinterest"):
@@ -812,6 +1011,10 @@ def deliver(brand, post, platform):
         finally:
             BUFFER_CHANNELS["pinterest"] = prev
         return outcome(res, "via Buffer")
+
+    if platform == "tumblr":
+        return outcome(post_tumblr(brand, body, image, post.get("tags"),
+                                   post.get("pinterest_url")))
 
     if platform == "tiktok":
         if brand not in TIKTOK_ALLOWED_BRANDS:

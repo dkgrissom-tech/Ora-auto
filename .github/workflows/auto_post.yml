@@ -68,6 +68,13 @@ jobs:
           GRISSOM_PINTEREST_ACCESS_TOKEN: ${{ secrets.GRISSOM_PINTEREST_ACCESS_TOKEN }}
           GRISSOM_PINTEREST_BOARD_ID:     ${{ secrets.GRISSOM_PINTEREST_BOARD_ID }}
           GRISSOM_TIKTOK_ACCESS_TOKEN:    ${{ secrets.GRISSOM_TIKTOK_ACCESS_TOKEN }}
+          # Tumblr is OAuth 1.0a, so it needs the app pair AND the token pair.
+          # All five must be set or post_tumblr skips and says which are missing.
+          GRISSOM_TUMBLR_BLOG:                ${{ secrets.GRISSOM_TUMBLR_BLOG }}
+          GRISSOM_TUMBLR_CONSUMER_KEY:        ${{ secrets.GRISSOM_TUMBLR_CONSUMER_KEY }}
+          GRISSOM_TUMBLR_CONSUMER_SECRET:     ${{ secrets.GRISSOM_TUMBLR_CONSUMER_SECRET }}
+          GRISSOM_TUMBLR_OAUTH_TOKEN:         ${{ secrets.GRISSOM_TUMBLR_OAUTH_TOKEN }}
+          GRISSOM_TUMBLR_OAUTH_TOKEN_SECRET:  ${{ secrets.GRISSOM_TUMBLR_OAUTH_TOKEN_SECRET }}
 
           # ===== FAMILY BOOK CREATOR =====
           FAMILYBOOK_BLUESKY_HANDLE:         ${{ secrets.FAMILYBOOK_BLUESKY_HANDLE }}

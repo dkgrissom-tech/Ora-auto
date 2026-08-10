@@ -36,6 +36,8 @@ blocks. Each block:
     video: brands/ora/assets/ora_demo.mp4                # optional
     pinterest_title: Just say Ora
     pinterest_url: https://meetora-app.pplx.app
+    tags: romance, small town romance                    # optional, Tumblr
+    alt: Hands on a weathered green door                 # optional, Bluesky alt text
     ---
     Body of the post goes here.
     Multiple lines OK.
@@ -70,7 +72,11 @@ LOG_DIR.mkdir(exist_ok=True)
 
 # Mirrors run_scheduler.py registry — keep in sync.
 BRANDS = ["ora", "grissom", "familybook"]
-TIKTOK_ALLOWED_BRANDS = {"ora", "grissom"}
+
+# Defined once in brand_policy so this and run_scheduler cannot drift again.
+# They already had: this file allowed grissom TikTok, the scheduler did not, so
+# grissom TikTok posts were queued here and skipped every day at delivery.
+from brand_policy import TIKTOK_ALLOWED_BRANDS  # noqa: E402
 
 # Default posting slots per brand (UTC hours), used when a draft omits `time`.
 # 13/17/21 UTC == 08/12/16 CDT — matches your Daily Launch Packet cadence.
@@ -80,7 +86,8 @@ SLOT_DEFAULTS: Dict[str, List[str]] = {
     "familybook": ["15:00", "20:00", "00:00"],
 }
 
-VALID_PLATFORMS = {"bluesky", "x", "linkedin", "threads", "instagram", "pinterest", "tiktok"}
+VALID_PLATFORMS = {"bluesky", "x", "linkedin", "threads", "instagram", "pinterest",
+                   "tiktok", "tumblr"}
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
@@ -266,6 +273,11 @@ def validate_and_normalize(brand: str, block: dict, existing_hours_by_date) -> O
         "video": meta.get("video"),
         "pinterest_title": meta.get("pinterest_title"),
         "pinterest_url": meta.get("pinterest_url"),
+        # tags: Tumblr discovery is tag-driven. alt: Bluesky image alt text.
+        # Both were readable by run_scheduler but got dropped here, so they
+        # could only be set by hand-editing the queue file.
+        "tags": meta.get("tags"),
+        "alt": meta.get("alt"),
         "body": body,
     }
 
@@ -306,6 +318,10 @@ def render_post_block(post: dict) -> str:
         meta_lines.append(f"pinterest_title: {post['pinterest_title']}")
     if post.get("pinterest_url"):
         meta_lines.append(f"pinterest_url: {post['pinterest_url']}")
+    if post.get("tags"):
+        meta_lines.append(f"tags: {post['tags']}")
+    if post.get("alt"):
+        meta_lines.append(f"alt: {post['alt']}")
 
     return (
         CLONE_FENCE_START.format(id=block_id(post))
