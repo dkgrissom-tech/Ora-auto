@@ -1192,6 +1192,10 @@ def write_summary(results, hour):
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
+    # Surface credential-naming problems on every tick, not only on ticks that
+    # happen to have a post due. The truncated BUFFER_ACCESS_TOKE secret went
+    # unnoticed because the only code that looked at it ran during publishing.
+    buffer_token()
     ledger = load_ledger()
     results = []
 
