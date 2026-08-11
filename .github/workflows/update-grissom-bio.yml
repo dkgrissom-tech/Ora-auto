@@ -1,0 +1,100 @@
+name: Update Grissom Bluesky Bio
+
+# One-shot: updates the grissompress.bsky.social profile
+# (display name + description) using existing GRISSOM_BLUESKY_HANDLE
+# and GRISSOM_BLUESKY_APP_PASSWORD secrets.
+#
+# Run manually via Actions tab -> "Update Grissom Bluesky Bio" -> Run workflow.
+# Leaves an idempotent record in logs/bluesky-profile-update.log.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-bio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update Grissom Press Bluesky profile
+        env:
+          BLUESKY_HANDLE: ${{ secrets.GRISSOM_BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.GRISSOM_BLUESKY_APP_PASSWORD }}
+          DISPLAY_NAME: "Grissom Press"
+          DESCRIPTION: |-
+            Small-town romance & indie publishing. Book One: HANDY HEARTS by D.K. Grissom — a slow-burn Cedar Hollow story. Preorder + reader circle: cedarhollow.pplx.app 🌲
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.request
+
+          handle = os.environ["BLUESKY_HANDLE"].strip().lstrip("@").lower()
+          if "." not in handle:
+              handle = f"{handle}.bsky.social"
+          password = os.environ["BLUESKY_APP_PASSWORD"].strip()
+          display_name = os.environ["DISPLAY_NAME"]
+          description = os.environ["DESCRIPTION"]
+
+          def post(url, body, headers=None):
+              req = urllib.request.Request(
+                  url, data=json.dumps(body).encode(),
+                  headers={"Content-Type": "application/json", **(headers or {})}
+              )
+              return json.loads(urllib.request.urlopen(req).read())
+
+          # 1. Create session
+          sess = post(
+              "https://bsky.social/xrpc/com.atproto.server.createSession",
+              {"identifier": handle, "password": password},
+          )
+          did = sess["did"]
+          access = sess["accessJwt"]
+          auth = {"Authorization": f"Bearer {access}"}
+          print(f"Logged in as {handle} (did={did})")
+
+          # 2. Read existing profile record (if any)
+          try:
+              existing = json.loads(urllib.request.urlopen(
+                  f"https://bsky.social/xrpc/com.atproto.repo.getRecord"
+                  f"?repo={did}&collection=app.bsky.actor.profile&rkey=self"
+              ).read())
+              rec = existing.get("value", {})
+              print(f"Existing profile: displayName={rec.get('displayName')!r} desc_len={len(rec.get('description') or '')}")
+          except Exception as e:
+              print(f"No existing profile record ({e}); creating fresh")
+              rec = {}
+
+          rec["$type"] = "app.bsky.actor.profile"
+          rec["displayName"] = display_name
+          rec["description"] = description
+
+          # 3. Write profile record (putRecord upserts by rkey=self)
+          result = post(
+              "https://bsky.social/xrpc/com.atproto.repo.putRecord",
+              {
+                  "repo": did,
+                  "collection": "app.bsky.actor.profile",
+                  "rkey": "self",
+                  "record": rec,
+              },
+              headers=auth,
+          )
+          print(f"Profile updated. uri={result.get('uri')} cid={result.get('cid')}")
+          PY
+
+      - name: Append log entry
+        run: |
+          mkdir -p logs
+          echo "[$(date -u +%FT%TZ)] [bluesky-profile] grissompress bio + display name updated (workflow run ${{ github.run_id }})" >> logs/bluesky-profile-update.log
+
+      - name: Commit log
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add logs/bluesky-profile-update.log
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(bluesky): record grissompress profile update [skip ci]"
+            git push
+          fi
