@@ -419,6 +419,105 @@ def post_pinterest(brand, text, title, dest_url, image_path):
         log(f"[{brand}] Pinterest FAIL: {e}")
         return False
 
+# ---------------------------------------------------------------------------
+# Postiz (self-hosted) — Pinterest routing
+#
+# Postiz is a self-hosted open-source scheduler that handles Pinterest's OAuth
+# and posting on our behalf, sidestepping Pinterest v5's Trial-tier sandbox and
+# Standard-access video review. One shared instance for all brands. Each brand
+# selects its own Pinterest integration inside Postiz and exposes the resulting
+# integration ID via {BRAND}_POSTIZ_PINTEREST_ID (e.g. GRISSOM_POSTIZ_PINTEREST_ID).
+#
+# Requires env:
+#   POSTIZ_URL           https://postiz-v2113-production-a347.up.railway.app
+#   POSTIZ_API_KEY       (from Postiz Settings > Developers > Public API)
+#   {BRAND}_POSTIZ_PINTEREST_ID     Postiz integration ID for that brand's Pinterest
+#   {BRAND}_POSTIZ_PINTEREST_BOARD  (optional) board slug to pin to
+#
+# Auth header format is `Authorization: <key>` (NO `Bearer` prefix) per Postiz docs.
+# Rate limit is 90 create-post req/hr per instance.
+# ---------------------------------------------------------------------------
+
+def postiz_configured(brand):
+    return bool(
+        os.environ.get("POSTIZ_URL")
+        and os.environ.get("POSTIZ_API_KEY")
+        and secret(brand, "POSTIZ_PINTEREST_ID")
+    )
+
+
+def post_postiz_pinterest(brand, text, title, dest_url, image_path):
+    """Publish a Pinterest pin through a self-hosted Postiz instance.
+
+    Uploads the image to Postiz first, then submits a scheduled post with
+    `type: now`. Returns True on 200/201, False on API failure, None when
+    the brand isn't configured for Postiz."""
+    import requests
+    if not (postiz_configured(brand) and image_path):
+        return None
+    base = os.environ["POSTIZ_URL"].rstrip("/")
+    key = os.environ["POSTIZ_API_KEY"]
+    integ_id = secret(brand, "POSTIZ_PINTEREST_ID")
+    board = secret(brand, "POSTIZ_PINTEREST_BOARD") or None
+    title = (title or brand)[:100]
+    dest_url = dest_url or ""
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Postiz Pinterest pin: {title}")
+        return True
+    try:
+        img_bytes = load_asset_bytes(brand, image_path)
+        if not img_bytes:
+            log(f"[{brand}] Postiz: image not readable {image_path}")
+            return False
+        # 1) upload
+        ext = os.path.splitext(image_path)[1].lower() or ".jpg"
+        mime = "image/png" if ext == ".png" else "image/jpeg"
+        up = requests.post(
+            f"{base}/public/v1/upload",
+            headers={"Authorization": key},
+            files={"file": (f"pin{ext}", img_bytes, mime)},
+            timeout=60,
+        )
+        if up.status_code not in (200, 201):
+            log(f"[{brand}] Postiz upload FAIL: {up.status_code} {up.text[:200]}")
+            return False
+        uj = up.json()
+        img_obj = {"id": uj.get("id"), "path": uj.get("path")}
+        if not img_obj["id"]:
+            log(f"[{brand}] Postiz upload: no id in response")
+            return False
+        # 2) create post
+        pin_settings = {"__type": "pinterest", "title": title}
+        if dest_url:
+            pin_settings["link"] = dest_url
+        if board:
+            pin_settings["board"] = board
+        body = {
+            "type": "now",
+            "shortLink": False,
+            "tags": [],
+            "posts": [{
+                "integration": {"id": integ_id},
+                "value": [{"content": text[:500], "image": [img_obj]}],
+                "settings": pin_settings,
+            }],
+        }
+        cp = requests.post(
+            f"{base}/public/v1/posts",
+            headers={"Authorization": key, "Content-Type": "application/json"},
+            json=body,
+            timeout=60,
+        )
+        if cp.status_code in (200, 201):
+            log(f"[{brand}] Postiz Pinterest posted OK")
+            return True
+        log(f"[{brand}] Postiz Pinterest FAIL: {cp.status_code} {cp.text[:300]}")
+        return False
+    except Exception as e:
+        log(f"[{brand}] Postiz Pinterest FAIL: {e}")
+        return False
+
+
 def post_tiktok(brand, text, video_path):
     import requests
     token = secret(brand, "TIKTOK_ACCESS_TOKEN")
@@ -1102,6 +1201,19 @@ def deliver(brand, post, platform):
             _ig_sent_this_run += 1
         return outcome(res, "via Buffer")
 
+    if platform == "postiz_pinterest":
+        # Preferred Pinterest route: self-hosted Postiz handles OAuth + posting
+        # so we sidestep Pinterest v5's Trial-tier sandbox and the Standard
+        # access video review. Requires POSTIZ_URL, POSTIZ_API_KEY, and the
+        # per-brand {BRAND}_POSTIZ_PINTEREST_ID. route() only sends the slot
+        # here when postiz_configured(brand) is True.
+        return outcome(post_postiz_pinterest(
+            brand, body,
+            post.get("pinterest_title"),
+            post.get("pinterest_url") or pin_link(brand, None),
+            image,
+        ), "via Postiz")
+
     if platform in ("pinterest", "buffer_pinterest"):
         # Pinterest's own API returns 401 behind an app review this account does
         # not have, so publish through Buffer, which already carries Instagram,
@@ -1135,16 +1247,26 @@ def deliver(brand, post, platform):
     return "skip", f"unknown platform '{platform}'"
 
 
-def route(platforms):
+def route(platforms, brand=None):
     """Expand the queue's declared platforms into ones that can actually
-    publish today. Pinterest fans out to its fallbacks."""
+    publish today. Pinterest fans out to its fallbacks.
+
+    `brand` is required for Postiz routing (each brand has its own Pinterest
+    integration ID). If not given, Postiz is skipped and we fall back to the
+    old Buffer-then-reroute behavior."""
     out = []
     for p in platforms:
         if p == "pinterest":
-            # Only fan out when Pinterest genuinely has nowhere to go. With a
-            # Buffer Pinterest channel connected the slot publishes for real,
-            # and the reroute - which miscrops 2:3 pins into Instagram's 4:5 -
-            # stops entirely.
+            # Priority order:
+            #   1. Postiz self-hosted (native Pinterest, our own OAuth)
+            #   2. Buffer Pinterest channel (if a channel resolved)
+            #   3. PINTEREST_FALLBACK (buffer_instagram, bluesky) - miscrops 2:3
+            # Postiz takes precedence when configured for the brand; Buffer is
+            # kept as failover so nothing breaks if Postiz is down.
+            if brand and postiz_configured(brand):
+                if "postiz_pinterest" not in out:
+                    out.append("postiz_pinterest")
+                continue
             if resolve_buffer_pinterest():
                 if "buffer_pinterest" not in out:
                     out.append("buffer_pinterest")
@@ -1203,7 +1325,7 @@ def main():
         for p in parse_today(brand):
             if p["hour"] != now.hour:
                 continue
-            targets = route(p["platforms"])
+            targets = route(p["platforms"], brand=brand)
             log(f"[{brand}] {p['platforms']} -> {targets}: {p['body'][:70]}...")
             for plat in targets:
                 key = post_key(brand, p, plat)

@@ -97,6 +97,21 @@ jobs:
           FAMILYBOOK_PINTEREST_APP_SECRET: ${{ secrets.FAMILYBOOK_PINTEREST_APP_SECRET }}
           FAMILYBOOK_TIKTOK_ACCESS_TOKEN:    ${{ secrets.FAMILYBOOK_TIKTOK_ACCESS_TOKEN }}
 
+          # ===== POSTIZ (self-hosted, shared across brands) =====
+          # Route Pinterest through Postiz to bypass Pinterest v5's Trial-tier
+          # sandbox. POSTIZ_URL + POSTIZ_API_KEY are org-wide; each brand adds
+          # its own {BRAND}_POSTIZ_PINTEREST_ID pointing at the Postiz
+          # integration ID for that brand's Pinterest account. Missing per-brand
+          # ID -> that brand's Pinterest still falls through to Buffer/Bluesky.
+          POSTIZ_URL:                        ${{ secrets.POSTIZ_URL }}
+          POSTIZ_API_KEY:                    ${{ secrets.POSTIZ_API_KEY }}
+          ORA_POSTIZ_PINTEREST_ID:           ${{ secrets.ORA_POSTIZ_PINTEREST_ID }}
+          ORA_POSTIZ_PINTEREST_BOARD:        ${{ secrets.ORA_POSTIZ_PINTEREST_BOARD }}
+          GRISSOM_POSTIZ_PINTEREST_ID:       ${{ secrets.GRISSOM_POSTIZ_PINTEREST_ID }}
+          GRISSOM_POSTIZ_PINTEREST_BOARD:    ${{ secrets.GRISSOM_POSTIZ_PINTEREST_BOARD }}
+          FAMILYBOOK_POSTIZ_PINTEREST_ID:    ${{ secrets.FAMILYBOOK_POSTIZ_PINTEREST_ID }}
+          FAMILYBOOK_POSTIZ_PINTEREST_BOARD: ${{ secrets.FAMILYBOOK_POSTIZ_PINTEREST_BOARD }}
+
         run: python scripts/run_scheduler.py
 
       # Runs even when posting failed, so a partial success is still recorded
