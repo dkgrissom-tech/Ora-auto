@@ -27,6 +27,7 @@ import os
 import sys
 import datetime as dt
 import re
+import argparse
 from pathlib import Path
 
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
@@ -94,6 +95,8 @@ def parse_today(brand):
             # nearly invisible.
             "tags": meta.get("tags"),
             "video": meta.get("video"),
+            "destination": meta.get("destination"),
+            "stage": meta.get("stage"),
             "pinterest_title": meta.get("pinterest_title"),
             "pinterest_url": meta.get("pinterest_url"),
             "body": "\n".join(body_lines).strip(),
@@ -116,12 +119,69 @@ def derive_pin_title(body):
         return re.sub(r"\s{2,}", " ", line).strip()[:100]
     return ""
 
-# A pin with no destination link cannot drive a preorder, so fall back to each
-# brand's canonical page. Override with {BRAND}_PINTEREST_LINK.
-DEFAULT_PIN_LINKS = {
-    "grissom": "https://cedarhollow.pplx.app",
-    "familybook": "https://familybookcreator.app",
+# Every scheduled unit has a funnel stage. Queue entries now carry an explicit
+# destination and stage, but these safe defaults keep pre-existing queued posts
+# publishable during the migration. Environment variables make it possible to
+# change a destination without rewriting a queue:
+#   GRISSOM_CAPTURE_URL, GRISSOM_CONVERT_URL, ...
+DEFAULT_DEST_LINKS = {
+    ("ora", "capture"): "https://meetora-app.pplx.app",
+    ("ora", "convert"): "https://meetora-app.pplx.app",
+    ("grissom", "capture"): "https://dl.bookfunnel.com/porch-before",
+    ("grissom", "convert"): "https://cedarhollow.pplx.app",
+    ("familybook", "capture"): "https://familybookcreator.app",
+    ("familybook", "convert"): "https://gumroad.com/l/aulfo",
 }
+
+# Retained for direct callers and old Pinterest-only queue entries. The
+# scheduler itself resolves the richer destination/stage fallback first.
+DEFAULT_PIN_LINKS = {
+    brand: DEFAULT_DEST_LINKS[(brand, "convert")]
+    for brand in BRANDS
+}
+
+URL_RE = re.compile(r"https?://[^\s<>()]+", re.I)
+
+
+def destination_link(brand, post):
+    """Resolve a post's CTA destination, preserving legacy Pinterest URLs.
+
+    Old posts predate `destination:` and `stage:`. They default to conversion
+    rather than failing at publish time; unprocessed drafts are the strict
+    boundary enforced by ingest_clone_drafts.py.
+    """
+    destination = (post.get("destination") or "").strip()
+    if destination:
+        return destination
+    # `pinterest_url` was the old destination field. It remains a compatibility
+    # fallback so already-queued pins do not lose their selected product URL.
+    legacy = (post.get("pinterest_url") or "").strip()
+    if legacy:
+        return legacy
+    stage = (post.get("stage") or "convert").strip().lower()
+    return (
+        os.environ.get(f"{brand.upper()}_{stage.upper()}_URL", "").strip()
+        or DEFAULT_DEST_LINKS.get((brand, stage), "")
+    )
+
+
+def append_destination_url(text, destination, limit=None):
+    """Append a CTA as the final line unless the copy already contains a URL.
+
+    When a platform's character cap would otherwise cut off the URL, shorten
+    the prose first so the CTA remains the final complete line.
+    """
+    text = (text or "").strip()
+    destination = (destination or "").strip()
+    if not destination or URL_RE.search(text):
+        return text
+    combined = f"{text}\n{destination}" if text else destination
+    if limit is None or len(combined) <= limit:
+        return combined
+    room = limit - len(destination) - 1
+    if room <= 0:
+        return destination[:limit]
+    return f"{text[:room].rstrip()}\n{destination}"
 
 def pin_link(brand, dest_url):
     return (dest_url
@@ -148,6 +208,10 @@ def load_asset_bytes(brand, path):
     local = ROOT / path
     if local.exists():
         return local.read_bytes()
+    if DRY_RUN:
+        log(f"[{brand}] [DRY] Bluesky image {path} is not in this checkout; "
+            "skipping remote asset fetch")
+        return None
     try:
         import requests
         r = requests.get(asset_url(path), timeout=30)
@@ -513,6 +577,19 @@ def resolve_buffer_pinterest():
     _buffer_pinterest = None
     if not buffer_token():
         return None
+    # A dry run must not inspect the Buffer account over the network. An
+    # explicitly configured channel can still exercise the would-publish path;
+    # otherwise use the existing no-Pinterest fallback route.
+    if DRY_RUN:
+        channel = BUFFER_CHANNELS.get("pinterest")
+        if channel:
+            _buffer_pinterest = (channel, None)
+            log("[DRY] Buffer Pinterest channel supplied by environment; "
+                "skipping remote board lookup")
+        else:
+            log("[DRY] Buffer Pinterest channel not resolved without a network "
+                "call; using configured fallback route")
+        return _buffer_pinterest
 
     want_board = (os.environ.get("BUFFER_PINTEREST_BOARD") or "").strip()
     data, err = buffer_gql(CHANNELS_WITH_BOARDS, {})
@@ -1063,26 +1140,30 @@ def deliver(brand, post, platform):
     global _ig_sent_this_run
     body = plain(post["body"])
     image = post.get("image")
+    destination = destination_link(brand, post)
 
     if platform == "bluesky":
-        return outcome(post_bluesky(brand, body, image, post.get("alt")))
+        return outcome(post_bluesky(
+            brand, append_destination_url(body, destination, 300), image, post.get("alt")
+        ))
 
     if platform == "x":
         return "skip", "X is manual-only by policy"
 
     if platform == "linkedin":
-        return outcome(post_linkedin(brand, body))
+        return outcome(post_linkedin(brand, append_destination_url(body, destination, 3000)))
 
     if platform == "threads":
-        return outcome(post_threads(brand, body))
+        return outcome(post_threads(brand, append_destination_url(body, destination, 500)))
 
     if platform == "instagram":
         # Prefer Buffer; the direct Meta Graph route needs an app review this
         # account does not have. Fall back to it only if Buffer is unconfigured.
+        platform_body = append_destination_url(body, destination, 2200)
         if buffer_token() and BUFFER_CHANNELS.get("instagram"):
-            res = post_buffer(brand, body, image, "instagram")
+            res = post_buffer(brand, platform_body, image, "instagram")
         else:
-            res = post_instagram(brand, body, image)
+            res = post_instagram(brand, platform_body, image)
         if res:
             # Counts toward today's budget even though it is never capped, so a
             # scheduled post plus reroutes cannot together overrun the account.
@@ -1097,7 +1178,8 @@ def deliver(brand, post, platform):
         if IG_DAILY_CAP and sent >= IG_DAILY_CAP:
             return "skip", (f"Instagram daily cap reached "
                             f"({sent}/{IG_DAILY_CAP} today)")
-        res = post_buffer(brand, body, image, "instagram")
+        res = post_buffer(brand, append_destination_url(body, destination, 2200),
+                          image, "instagram")
         if res:
             _ig_sent_this_run += 1
         return outcome(res, "via Buffer")
@@ -1117,7 +1199,7 @@ def deliver(brand, post, platform):
         try:
             res = post_buffer(brand, body, image, "pinterest",
                               pin_title=post.get("pinterest_title"),
-                              pin_url=post.get("pinterest_url"),
+                              pin_url=destination,
                               board_id=board_id)
         finally:
             BUFFER_CHANNELS["pinterest"] = prev
@@ -1125,12 +1207,14 @@ def deliver(brand, post, platform):
 
     if platform == "tumblr":
         return outcome(post_tumblr(brand, body, image, post.get("tags"),
-                                   post.get("pinterest_url")))
+                                   destination))
 
     if platform == "tiktok":
         if brand not in TIKTOK_ALLOWED_BRANDS:
             return "skip", "TikTok disabled for this brand by policy"
-        return outcome(post_tiktok(brand, body, post.get("video")))
+        return outcome(post_tiktok(
+            brand, append_destination_url(body, destination, 150), post.get("video")
+        ))
 
     return "skip", f"unknown platform '{platform}'"
 
@@ -1164,8 +1248,10 @@ def write_summary(results, hour):
     if not path:
         return
     ok = sum(1 for r in results if r["status"] == "ok")
-    failed = [r for r in results if r["status"] == "fail"]
-    skipped = [r for r in results if r["status"] == "skip"]
+    # A configured platform with a queued post is a failed delivery even when
+    # its poster returned None ("keys missing") and the legacy status is skip.
+    failed = [r for r in results if not r["success"]]
+    skipped = [r for r in results if r["status"] == "skip" and r["success"]]
     lines = [
         f"## Auto-post tick - {hour:02d}:00 UTC",
         "",
@@ -1178,7 +1264,8 @@ def write_summary(results, hour):
         icon = {"ok": "published", "fail": "FAILED", "skip": "skipped"}
         for r in results:
             preview = (r["preview"] or "").replace("|", "\\|")[:60]
-            lines.append(f"| {icon[r['status']]} | {r['brand']} | {r['platform']} "
+            result = "FAILED" if not r["success"] else icon[r["status"]]
+            lines.append(f"| {result} | {r['brand']} | {r['platform']} "
                          f"| {r['detail']} | {preview} |")
     else:
         lines.append("_Nothing was scheduled for this hour._")
@@ -1189,15 +1276,28 @@ def write_summary(results, hour):
         f.write("\n".join(lines) + "\n")
 
 
-def main():
+def main(argv=None):
+    global DRY_RUN
+    ap = argparse.ArgumentParser(
+        description="Publish the current UTC hour's scheduled social posts."
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true",
+        help="Run the full queue and credential validation without network calls."
+    )
+    args = ap.parse_args(argv)
+    if args.dry_run:
+        DRY_RUN = True
+
     now = dt.datetime.utcnow()
-    log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
+    log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour}) dry_run={DRY_RUN}")
     # Surface credential-naming problems on every tick, not only on ticks that
     # happen to have a post due. The truncated BUFFER_ACCESS_TOKE secret went
     # unnoticed because the only code that looked at it ran during publishing.
     buffer_token()
     ledger = load_ledger()
     results = []
+    any_failed = False
 
     for brand in BRANDS:
         for p in parse_today(brand):
@@ -1217,24 +1317,35 @@ def main():
                     log(f"[{brand}] {plat} FAIL (unhandled): {e}")
                 if status == "ok":
                     ledger.add(key)
+                # X is intentionally manual-only. All other target platforms
+                # are expected to publish when their post is due; a legacy
+                # "skip" caused by missing keys is therefore a failed post.
+                expected_to_publish = plat != "x"
+                success = status == "ok" or not expected_to_publish
+                if not success:
+                    any_failed = True
                 results.append({"brand": brand, "platform": plat, "status": status,
-                                "detail": detail, "preview": p["body"][:60]})
+                                "success": success, "detail": detail,
+                                "preview": p["body"][:60]})
 
     save_ledger(ledger)
 
     ok = sum(1 for r in results if r["status"] == "ok")
-    failed = [r for r in results if r["status"] == "fail"]
-    skipped = sum(1 for r in results if r["status"] == "skip")
+    failed = [r for r in results if not r["success"]]
+    skipped = sum(1 for r in results if r["status"] == "skip" and r["success"])
     log(f"Tick complete: {ok} published, {len(failed)} failed, {skipped} skipped")
     write_summary(results, now.hour)
 
-    if failed:
-        for r in failed:
-            log(f"FAILED: {r['brand']}/{r['platform']} {r['detail']}")
-        # Exit non-zero so the run goes red. Silent green runs are why the
-        # Pinterest outage ran for five days without anyone noticing.
-        sys.exit(1)
+    if any_failed:
+        failing_posts = [
+            f"{r['brand']}/{r['platform']}@{now.hour:02d}:00 ({r['detail']})"
+            for r in failed
+        ]
+        log(f"SCHEDULER FAILED: {len(failed)} of {len(results)} posts failed. "
+            f"Failing posts: [{'; '.join(failing_posts)}]")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

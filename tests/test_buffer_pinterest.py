@@ -66,6 +66,7 @@ POST = {
 # 1. Channel connected: the slot routes to Pinterest, not to the fallbacks.
 print("\n1. Pinterest channel connected")
 reset([CHANNEL])
+rs.DRY_RUN = False  # Live routing may resolve Buffer; dry runs deliberately do not.
 routed = rs.route(["pinterest"])
 print("      routed ->", routed)
 if routed != ["buffer_pinterest"]:
@@ -137,6 +138,7 @@ if meta.get("url") != "https://cedarhollow.pplx.app/porch-before":
 print("\n5. no Pinterest channel in Buffer")
 reset([{"id": "x", "name": "ig", "service": "instagram", "isDisconnected": False,
         "metadata": {}}])
+rs.DRY_RUN = False
 routed = rs.route(["pinterest"])
 print("      routed ->", routed)
 if routed != rs.PINTEREST_FALLBACK:
@@ -155,6 +157,7 @@ if routed != rs.PINTEREST_FALLBACK:
 # 7. Channel present but disconnected: reroute rather than fail every pin.
 print("\n7. channel disconnected")
 reset([dict(CHANNEL, isDisconnected=True)])
+rs.DRY_RUN = False
 routed = rs.route(["pinterest"])
 print("      routed ->", routed)
 if routed != rs.PINTEREST_FALLBACK:
