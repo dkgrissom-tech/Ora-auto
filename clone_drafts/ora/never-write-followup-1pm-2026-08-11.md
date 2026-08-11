@@ -3,7 +3,7 @@
 ---
 date: 2026-08-11
 time: 18:00
-platforms: bluesky, threads, tiktok
+platforms: bluesky, threads
 ---
 POV: it's Tuesday, you had four client calls, and you still haven't sent a single follow-up.
 
