@@ -2030,3 +2030,12 @@
 [2026-08-11T14:07:31.584906Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-11T14:07:31.584989Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
 [2026-08-11T14:07:31.585055Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
+[2026-08-11T15:43:26.019928Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-11T15:43:26.025066Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-11T15:43:26.025212Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-11T15:43:26.025303Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-11T15:43:26.026547Z] [ingest] [grissom] SKIP: no open slot on 2026-08-11
+[2026-08-11T15:43:26.026632Z] [ingest] [grissom] summary: {'drafts': 1, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-08-11T15:43:26.026851Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-11T15:43:26.026953Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-08-11T15:43:26.027017Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
