@@ -1,8 +1,7 @@
 ---
 date: 2026-08-11
 time: 14:00
-platforms: instagram
-image: brands/grissom/assets/handy-hearts-instagram-carousel-2026-08-03.jpg
+platforms: threads
 ---
 This is the book I wrote for anyone who's ever loved someone they thought they'd only get one shot at loving.
 
