@@ -614,12 +614,7 @@ def resolve_buffer_pinterest():
         return None
 
     want_board = (os.environ.get("BUFFER_PINTEREST_BOARD") or "").strip()
-    org_id = (os.environ.get("BUFFER_ORGANIZATION_ID") or "").strip()
-    if not org_id:
-        log("BUFFER_ORGANIZATION_ID not set - required by Buffer GraphQL v2 "
-            "(channels query now needs an organizationId). Add it as a GH secret.")
-        return None
-    data, err = buffer_gql(CHANNELS_WITH_BOARDS, {"input": {"organizationId": org_id}})
+    data, err = buffer_gql(CHANNELS_WITH_BOARDS, {})
     if err:
         log(f"Buffer channel lookup failed: {err}")
         return None
@@ -670,12 +665,9 @@ def resolve_buffer_pinterest():
     return _buffer_pinterest
 
 
-# Buffer's GraphQL v2 requires `channels(input: {organizationId: $orgId})`.
-# The old zero-arg form returns HTTP 200 with a schema error, which is why
-# Pinterest discovery was silently failing before this was added.
 CHANNELS_WITH_BOARDS = """
-query ChannelsWithBoards($input: ChannelsInput!) {
-  channels(input: $input) {
+query ChannelsWithBoards {
+  channels {
     id
     name
     service
