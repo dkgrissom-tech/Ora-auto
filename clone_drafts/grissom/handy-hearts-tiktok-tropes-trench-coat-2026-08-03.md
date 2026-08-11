@@ -1,5 +1,8 @@
-# The Viral BookTok Format
-
+---
+date: 2026-08-14
+time: 14:00
+platforms: threads, bluesky
+---
 POV: you asked me to recommend a small-town romance and I said okay but I need you to sit down first because this one has —
 
 ✔️ grumpy blue-collar handyman who came to town to *disappear*
@@ -14,6 +17,5 @@ and it's *closed-door with heat* so you can rec it to your mom AND your friend g
 📖 HANDY HEARTS by D.K. Grissom — out 9/8
 🌲 Book One of the Cedar Hollow Series
 
-comment CEDAR and I'll send you the preorder link.
-
-#BookTok #TropesInATrenchCoat #SmallTownRomance #WidowRomance #GrumpySunshine #HandyHearts #CedarHollow #DKGrissom #BookRec
+#SmallTownRomance #WidowRomance #GrumpySunshine #HandyHearts #CedarHollow #DKGrissom #BookRec
+---

@@ -1,5 +1,8 @@
-# Meet the Woman Rooting Loudest at the Coffee Shop
-
+---
+date: 2026-08-13
+time: 14:00
+platforms: threads, bluesky
+---
 Nancy runs the Hollow Bean.
 
 She's been running it since before Dana Whitfield's husband died. Before Don Rourke rolled into town in a truck older than most of her regulars. Before the porch came down on a Tuesday.
@@ -18,4 +21,5 @@ Cedar Hollow doesn't do one love story at a time.
 
 follow so you don't miss the second story starting under the first one.
 
-#BookTok #CedarHollow #SmallTownRomance #HandyHearts #DKGrissom #EnemiesToLovers #GrumpySunshine #SeriesRomance #BookRecommendations
+#CedarHollow #SmallTownRomance #HandyHearts #DKGrissom #SeriesRomance #BookRecommendations
+---
