@@ -613,6 +613,17 @@ def resolve_buffer_pinterest():
     if not buffer_token():
         return None
 
+    # FAST PATH: If both channel ID and board service ID are pinned in env,
+    # skip all lookup queries. Verified live values as of 2026-08-11 (see
+    # BUFFER_GRISSOM_PINTEREST_CHANNEL_ID / _BOARD_ID GH secrets). This is
+    # the bulletproof path — no org lookup, no scope requirements, just post.
+    pinned_channel = (os.environ.get("BUFFER_GRISSOM_PINTEREST_CHANNEL_ID") or "").strip()
+    pinned_board_service_id = (os.environ.get("BUFFER_GRISSOM_PINTEREST_BOARD_SERVICE_ID") or "").strip()
+    if pinned_channel and pinned_board_service_id:
+        log(f"Buffer Pinterest resolved via pinned env: channel={pinned_channel[:8]}... board={pinned_board_service_id}")
+        _buffer_pinterest = (pinned_channel, pinned_board_service_id)
+        return _buffer_pinterest
+
     want_board = (os.environ.get("BUFFER_PINTEREST_BOARD") or "").strip()
     # Discover the org ID from the token itself. Different Buffer tokens see
     # different orgs, so a hardcoded/env-provided ID may be wrong for THIS
