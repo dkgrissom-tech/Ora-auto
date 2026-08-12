@@ -28,10 +28,19 @@ jobs:
           BUFFER_PINTEREST_BOARD:  "Grissom Press Coloring Books"
         run: |
           python <<'PY'
-          import os, sys, requests, json
-          tok = os.environ.get("BUFFER_ACCESS_TOKEN","").strip()
+          import os, sys, requests, json, re
+          raw = os.environ.get("BUFFER_ACCESS_TOKEN","")
+          # Sanitize: keep only ASCII printable chars (removes smart-quotes,
+          # em-dashes, zero-width spaces, non-breaking spaces, newlines, etc.)
+          tok = re.sub(r'[^\x21-\x7e]', '', raw)
+          if raw != tok:
+            stripped = len(raw) - len(tok)
+            print(f"NOTE: Stripped {stripped} non-ASCII/whitespace char(s) from token.")
+            print(f"      Raw length: {len(raw)}, cleaned length: {len(tok)}")
           if not tok:
-            print("FAIL: BUFFER_ACCESS_TOKEN empty"); sys.exit(1)
+            print("FAIL: BUFFER_ACCESS_TOKEN empty (or entirely non-ASCII)"); sys.exit(1)
+          # Show a fingerprint so we can spot obvious wrongness without leaking the value
+          print(f"Token fingerprint: len={len(tok)}, first2={tok[:2]!r}, last2={tok[-2:]!r}")
 
           gql = "https://api.buffer.com/graphql"
           def call(q, v=None):
