@@ -832,12 +832,19 @@ mutation CreatePost($input: CreatePostInput!) {
 
 def ig_post_type(image_path):
     """Buffer needs the post type declared. Infer it the same way the art
-    pipeline does, from the filename."""
+    pipeline does, from the filename.
+
+    Buffer's Instagram API accepts only 'post', 'story', or 'reel' as valid
+    types — NOT 'carousel'. A multi-image carousel is still type='post';
+    Buffer decides it's a carousel automatically when multiple media are
+    attached. Verified against error 'InvalidInputError - Invalid post:
+    Instagram does not support the \'carousel\' post type' on 2026-08-12.
+    """
     n = (image_path or "").lower()
-    if "reel" in n or "story" in n:
+    if "reel" in n:
         return "reel"
-    if "carousel" in n:
-        return "carousel"
+    if "story" in n:
+        return "story"
     return "post"
 
 
