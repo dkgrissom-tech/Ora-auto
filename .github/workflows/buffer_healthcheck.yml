@@ -1,0 +1,91 @@
+name: Buffer healthcheck
+
+# Manual + daily 8 AM CT ping. Runs a self-test on Buffer channel resolution
+# so we know immediately if the token is stale, org ID is wrong, or Buffer's
+# schema changed underneath us. Publishes nothing. Notifies on failure.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * *"   # 8 AM CT (UTC-5 CDT) / 7 AM CST — daily
+
+permissions:
+  contents: read
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: Verify Buffer + Pinterest routing
+        env:
+          BUFFER_ACCESS_TOKEN:     ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_ORGANIZATION_ID:  ${{ secrets.BUFFER_ORGANIZATION_ID }}
+          BUFFER_PINTEREST_BOARD:  "Grissom Press Coloring Books"
+        run: |
+          python <<'PY'
+          import os, sys, requests, json
+          tok = os.environ.get("BUFFER_ACCESS_TOKEN","").strip()
+          if not tok:
+            print("FAIL: BUFFER_ACCESS_TOKEN empty"); sys.exit(1)
+
+          gql = "https://api.buffer.com/graphql"
+          def call(q, v=None):
+            r = requests.post(gql,
+              headers={"Authorization": f"Bearer {tok}", "Content-Type":"application/json"},
+              json={"query":q,"variables":v or {}}, timeout=15)
+            return r.status_code, r.json()
+
+          # 1) Token works at all?
+          c, d = call("{ account { id currentOrganization { id name } } }")
+          if c != 200 or d.get("errors"):
+            print(f"FAIL: 'me' query rejected. HTTP {c}. Response: {json.dumps(d)[:400]}")
+            print("      Your BUFFER_ACCESS_TOKEN is probably expired or wrong-format.")
+            print("      Fix: create a new token at https://developers.buffer.com/apps and update the GH secret.")
+            sys.exit(2)
+          acc = d.get("data",{}).get("account",{})
+          org = (acc.get("currentOrganization") or {})
+          org_id = org.get("id") or ""
+          print(f"OK: Buffer 'me' query returned org={org.get('name')} id={org_id[:8]}...")
+
+          # 2) Can we list channels?
+          c, d = call(
+            "query($input:ChannelsInput!){channels(input:$input){id name service isDisconnected metadata{...on PinterestMetadata{boards{id name serviceId}}}}}",
+            {"input":{"organizationId": org_id}})
+          if c != 200 or d.get("errors"):
+            print(f"FAIL: channels query rejected. Response: {json.dumps(d)[:400]}")
+            sys.exit(3)
+          chs = d.get("data",{}).get("channels",[]) or []
+          print(f"OK: {len(chs)} channel(s) connected to this Buffer org:")
+          pin = None
+          for c_ in chs:
+            marker = "❌ DISCONNECTED" if c_.get("isDisconnected") else "✅"
+            print(f"   {marker}  {c_.get('service'):12}  {c_.get('name')}")
+            if c_.get("service") == "pinterest" and not c_.get("isDisconnected"):
+              pin = c_
+
+          # 3) Pinterest specifically
+          if not pin:
+            print("FAIL: No Pinterest channel connected in Buffer. Add one at buffer.com/app/channels.")
+            sys.exit(4)
+          boards = ((pin.get("metadata") or {}).get("boards") or [])
+          print(f"OK: Pinterest connected with {len(boards)} board(s):")
+          for b in boards:
+            print(f"   - {b.get('name')} (serviceId={b.get('serviceId')})")
+
+          want = os.environ.get("BUFFER_PINTEREST_BOARD","").strip().lower()
+          if want:
+            match = [b for b in boards if want in (b.get("name") or "").lower()]
+            if match:
+              print(f"OK: BUFFER_PINTEREST_BOARD='{os.environ['BUFFER_PINTEREST_BOARD']}' matches '{match[0]['name']}'")
+            else:
+              print(f"WARN: BUFFER_PINTEREST_BOARD='{os.environ['BUFFER_PINTEREST_BOARD']}' matches NO board. Pins will go to default.")
+          print()
+          print("=" * 60)
+          print("HEALTHCHECK PASSED — Buffer Pinterest routing is functional.")
+          print("=" * 60)
+          PY
