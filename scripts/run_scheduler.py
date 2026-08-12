@@ -614,10 +614,28 @@ def resolve_buffer_pinterest():
         return None
 
     want_board = (os.environ.get("BUFFER_PINTEREST_BOARD") or "").strip()
-    org_id = (os.environ.get("BUFFER_ORGANIZATION_ID") or "").strip()
+    # Discover the org ID from the token itself. Different Buffer tokens see
+    # different orgs, so a hardcoded/env-provided ID may be wrong for THIS
+    # token. Fall back to BUFFER_ORGANIZATION_ID env var only if discovery fails.
+    org_id = ""
+    me_data, me_err = buffer_gql("{ account { currentOrganization { id } } }", {})
+    if me_err:
+        log(f"Buffer 'me' lookup failed: {me_err}")
+    else:
+        try:
+            org_id = ((me_data or {}).get("account", {})
+                     .get("currentOrganization", {}).get("id") or "").strip()
+            if org_id:
+                log(f"Buffer org ID auto-discovered: {org_id[:8]}...")
+        except Exception as e:
+            log(f"Buffer org ID parse failed: {e}")
     if not org_id:
-        log("BUFFER_ORGANIZATION_ID not set - required by Buffer GraphQL v2 "
-            "(channels query now needs an organizationId). Add it as a GH secret.")
+        org_id = (os.environ.get("BUFFER_ORGANIZATION_ID") or "").strip()
+        if org_id:
+            log(f"Falling back to env BUFFER_ORGANIZATION_ID: {org_id[:8]}...")
+    if not org_id:
+        log("No Buffer org ID available (auto-discovery failed, no env fallback). "
+            "Verify BUFFER_ACCESS_TOKEN has 'read:account' scope.")
         return None
     data, err = buffer_gql(CHANNELS_WITH_BOARDS, {"input": {"organizationId": org_id}})
     if err:
