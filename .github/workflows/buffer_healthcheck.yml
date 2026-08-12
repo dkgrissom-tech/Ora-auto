@@ -7,7 +7,7 @@ name: Buffer healthcheck
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 13 * * *"   # 8 AM CT (UTC-5 CDT) / 7 AM CST — daily
+    - cron: "0 13 * * 1"  # Weekly Mondays 8am CT (was daily until Pinterest is fixed)   # 8 AM CT (UTC-5 CDT) / 7 AM CST — daily
 
 permissions:
   contents: read
