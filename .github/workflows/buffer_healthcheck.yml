@@ -49,17 +49,19 @@ jobs:
               json={"query":q,"variables":v or {}}, timeout=15)
             return r.status_code, r.json()
 
-          # 1) Token works at all?
-          c, d = call("{ account { id currentOrganization { id name } } }")
-          if c != 200 or d.get("errors"):
-            print(f"FAIL: 'me' query rejected. HTTP {c}. Response: {json.dumps(d)[:400]}")
-            print("      Your BUFFER_ACCESS_TOKEN is probably expired or wrong-format.")
-            print("      Fix: create a new token at https://developers.buffer.com/apps and update the GH secret.")
+          # 1) Token works at all? (Public API tokens can't read currentOrganization,
+          # so ask for the 'organizations' list instead.)
+          c, d = call("{ account { id organizations { id name } } }")
+          acc = (d.get("data") or {}).get("account") or {}
+          orgs = acc.get("organizations") or []
+          if c != 200 or not orgs:
+            print(f"FAIL: token rejected or sees no organizations. HTTP {c}. Response: {json.dumps(d)[:400]}")
+            print("      Paste a fresh Buffer API token at:")
+            print("      https://github.com/dkgrissom-tech/Ora-auto/settings/secrets/actions/BUFFER_ACCESS_TOKEN")
             sys.exit(2)
-          acc = d.get("data",{}).get("account",{})
-          org = (acc.get("currentOrganization") or {})
+          org = orgs[0]
           org_id = org.get("id") or ""
-          print(f"OK: Buffer 'me' query returned org={org.get('name')} id={org_id[:8]}...")
+          print(f"OK: Buffer 'me' query returned org={org.get('name')!r} id={org_id[:8]}...")
 
           # 2) Can we list channels?
           c, d = call(

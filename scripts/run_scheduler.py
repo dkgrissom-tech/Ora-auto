@@ -629,13 +629,15 @@ def resolve_buffer_pinterest():
     # different orgs, so a hardcoded/env-provided ID may be wrong for THIS
     # token. Fall back to BUFFER_ORGANIZATION_ID env var only if discovery fails.
     org_id = ""
-    me_data, me_err = buffer_gql("{ account { currentOrganization { id } } }", {})
+    # Buffer Public API tokens can't read currentOrganization (FORBIDDEN),
+    # but they CAN read the organizations list. Use that.
+    me_data, me_err = buffer_gql("{ account { organizations { id name } } }", {})
     if me_err:
         log(f"Buffer 'me' lookup failed: {me_err}")
     else:
         try:
-            org_id = ((me_data or {}).get("account", {})
-                     .get("currentOrganization", {}).get("id") or "").strip()
+            orgs = (me_data or {}).get("account", {}).get("organizations") or []
+            org_id = (orgs[0].get("id") if orgs else "") or ""
             if org_id:
                 log(f"Buffer org ID auto-discovered: {org_id[:8]}...")
         except Exception as e:
