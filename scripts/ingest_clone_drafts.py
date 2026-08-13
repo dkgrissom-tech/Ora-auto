@@ -34,6 +34,8 @@ blocks. Each block:
     platforms: bluesky, threads, instagram, pinterest    # or [bluesky, threads] YAML-list style
     image: brands/ora/assets/drop1_8am_listening.png     # optional
     video: brands/ora/assets/ora_demo.mp4                # optional
+    destination: https://meetora-app.pplx.app           # required, allow-listed
+    stage: capture                                       # required: capture | convert
     pinterest_title: Just say Ora
     pinterest_url: https://meetora-app.pplx.app
     tags: romance, small town romance                    # optional, Tumblr
@@ -63,6 +65,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 DRAFTS_DIR = ROOT / "clone_drafts"
@@ -88,6 +91,16 @@ SLOT_DEFAULTS: Dict[str, List[str]] = {
 
 VALID_PLATFORMS = {"bluesky", "x", "linkedin", "threads", "instagram", "pinterest",
                    "tiktok", "tumblr"}
+VALID_STAGES = {"capture", "convert"}
+DESTINATION_ALLOW_LIST = (
+    "https://cedarhollow.pplx.app[/...], "
+    "https://grissompress.pplx.app[/...], "
+    "https://familybookcreator.app[/...], "
+    "https://meetora-app.pplx.app[/...], "
+    "https://dl.bookfunnel.com/..., "
+    "https://gumroad.com/l/..., "
+    "https://*.myshopify.com/..."
+)
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
@@ -175,6 +188,64 @@ def parse_draft_file(path: Path) -> List[dict]:
 # --------------------------------------------------------------------------
 # Validation & normalization
 # --------------------------------------------------------------------------
+
+class DraftValidationError(ValueError):
+    """A fatal frontmatter error in an unprocessed clone draft."""
+
+
+def destination_is_allowed(value: str) -> bool:
+    """Return whether `value` is one of the approved public destinations."""
+    parsed = urlparse(value)
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or "/"
+    if parsed.scheme != "https" or not host:
+        return False
+    if host in {
+        "cedarhollow.pplx.app",
+        "grissompress.pplx.app",
+        "familybookcreator.app",
+        "meetora-app.pplx.app",
+    }:
+        return True
+    if host == "dl.bookfunnel.com" and path != "/":
+        return True
+    if host == "gumroad.com" and path.startswith("/l/") and len(path) > len("/l/"):
+        return True
+    return host.endswith(".myshopify.com")
+
+
+def validate_required_frontmatter(path: Path, blocks: List[dict]) -> None:
+    """Fail the whole unprocessed draft when required funnel metadata is absent.
+
+    This deliberately runs before any block is written: a multi-block draft
+    must not be partially ingested if a later block has no approved destination.
+    """
+    for index, block in enumerate(blocks, start=1):
+        meta = block["meta"]
+        destination = (meta.get("destination") or "").strip()
+        stage = (meta.get("stage") or "").strip()
+        prefix = f"{path} (block {index})"
+        if not destination:
+            raise DraftValidationError(
+                f"{prefix}: missing required 'destination:' frontmatter. "
+                f"Allowed destinations: {DESTINATION_ALLOW_LIST}"
+            )
+        if not destination_is_allowed(destination):
+            raise DraftValidationError(
+                f"{prefix}: destination '{destination}' is not allowed. "
+                f"Allowed destinations: {DESTINATION_ALLOW_LIST}"
+            )
+        if not stage:
+            raise DraftValidationError(
+                f"{prefix}: missing required 'stage:' frontmatter "
+                "(must be exactly 'capture' or 'convert')."
+            )
+        if stage not in VALID_STAGES:
+            raise DraftValidationError(
+                f"{prefix}: invalid stage '{stage}' "
+                "(must be exactly 'capture' or 'convert')."
+            )
+
 
 def next_open_slot(brand: str, date_str: str, existing_hours: set) -> Optional[str]:
     """Return the next SLOT_DEFAULTS time for `brand` on `date_str` that
@@ -268,6 +339,8 @@ def validate_and_normalize(brand: str, block: dict, existing_hours_by_date) -> O
         "brand": brand,
         "date": date_str,
         "time": time_str,
+        "destination": meta.get("destination"),
+        "stage": meta.get("stage"),
         "platforms": plats,
         "image": meta.get("image"),
         "video": meta.get("video"),
@@ -294,7 +367,10 @@ CLONE_ID_RE = re.compile(r"<!-- CLONE:START id=([a-f0-9]{12}) -->")
 def block_id(post: dict) -> str:
     """Stable 12-char id derived from brand+date+time+body — same content
     always produces same id, so re-runs are idempotent."""
-    seed = f"{post['brand']}|{post['date']}|{post['time']}|{post['body']}"
+    seed = (
+        f"{post['brand']}|{post['date']}|{post['time']}|"
+        f"{post.get('destination', '')}|{post.get('stage', '')}|{post['body']}"
+    )
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12]
 
 
@@ -310,6 +386,10 @@ def render_post_block(post: dict) -> str:
 
     header = f"## {post['time']} UTC  ({cdt} CDT)"
     meta_lines = [f"platforms: {', '.join(post['platforms'])}"]
+    if post.get("destination"):
+        meta_lines.append(f"destination: {post['destination']}")
+    if post.get("stage"):
+        meta_lines.append(f"stage: {post['stage']}")
     if post.get("image"):
         meta_lines.append(f"image: {post['image']}")
     if post.get("video"):
@@ -405,8 +485,15 @@ def ingest_brand(brand: str, dry_run: bool) -> Dict[str, int]:
         stats["drafts"] += 1
         blocks = parse_draft_file(draft)
         if not blocks:
-            log(f"[{brand}] empty draft: {draft.name}")
-            continue
+            raise DraftValidationError(
+                f"{draft}: no valid frontmatter block found; every draft must "
+                f"declare required 'destination:' and 'stage:' frontmatter. "
+                f"Allowed destinations: {DESTINATION_ALLOW_LIST}"
+            )
+        # `glob("*.md")` intentionally only visits clone_drafts/<brand>/;
+        # archived files in _processed/ predate this required metadata and are
+        # therefore exempt from the migration.
+        validate_required_frontmatter(draft, blocks)
         wrote_from_file = 0
         for block in blocks:
             stats["blocks"] += 1
@@ -445,17 +532,16 @@ def main() -> int:
     brands = [args.brand] if args.brand else BRANDS
     log(f"Ingest tick — brands={brands} dry_run={args.dry_run}")
     grand: Dict[str, int] = {"drafts": 0, "blocks": 0, "wrote": 0, "skipped": 0, "invalid": 0}
-    for b in brands:
-        s = ingest_brand(b, args.dry_run)
-        for k in grand:
-            grand[k] += s[k]
-        log(f"[{b}] summary: {s}")
+    try:
+        for b in brands:
+            s = ingest_brand(b, args.dry_run)
+            for k in grand:
+                grand[k] += s[k]
+            log(f"[{b}] summary: {s}")
+    except DraftValidationError as e:
+        log(f"INGEST FAILED: {e}")
+        return 1
     log(f"TOTAL: {grand}")
-    # Exit code policy:
-    #   Always exit 0. Empty drafts and invalid drafts are surfaced in the
-    #   log summary above, but they are not CI failures - they are content
-    #   issues the author fixes on the next commit. Real script crashes still
-    #   bubble up as non-zero via Python's exception handling.
     if grand["invalid"] > 0:
         log(f"NOTE: {grand['invalid']} invalid draft(s) skipped - fix and recommit")
     return 0
