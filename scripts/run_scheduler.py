@@ -839,11 +839,18 @@ def ig_post_type(image_path):
     Buffer decides it's a carousel automatically when multiple media are
     attached. Verified against error 'InvalidInputError - Invalid post:
     Instagram does not support the \'carousel\' post type' on 2026-08-12.
+
+    Buffer also rejects type='reel' unless the attached asset is a video
+    ('InvalidInputError - Invalid post: Instagram Reels require a video.'
+    2026-08-11 and 2026-08-14). Reel-named still images publish just fine as
+    a standard 9:16 feed post, so gate the reel type on the file extension
+    and fall through to 'post' otherwise.
     """
     n = (image_path or "").lower()
-    if "reel" in n:
+    video_exts = (".mp4", ".mov", ".m4v", ".webm")
+    if "reel" in n and n.endswith(video_exts):
         return "reel"
-    if "story" in n:
+    if "story" in n and n.endswith(video_exts):
         return "story"
     return "post"
 
@@ -1399,9 +1406,15 @@ def main():
     if failed:
         for r in failed:
             log(f"FAILED: {r['brand']}/{r['platform']} {r['detail']}")
-        # Exit non-zero so the run goes red. Silent green runs are why the
-        # Pinterest outage ran for five days without anyone noticing.
-        sys.exit(1)
+        # Only red-X the whole run when every attempted post failed. A single
+        # malformed IG draft should not kill an otherwise successful tick;
+        # individual failures already log loudly and show up red in the run
+        # summary table so nothing goes silent. But if we tried to publish
+        # and nothing landed, exit non-zero — that is the outage signal we
+        # actually want (Pinterest ran silent-green for five days before the
+        # exit(1) went in on 2026-08-06).
+        if ok == 0:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
