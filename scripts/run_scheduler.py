@@ -830,6 +830,20 @@ mutation CreatePost($input: CreatePostInput!) {
 """
 
 
+def is_reel_named_stillframe(image_path):
+    """True when the asset filename says 'reel' but the extension is not a
+    video type. Buffer's Instagram channel (at least the one connected here)
+    rejects such posts with 'Instagram Reels require a video' even when the
+    API payload sets type=post, so we skip them at delivery time with an
+    actionable message instead of letting the run go red.
+    """
+    n = (image_path or "").lower()
+    if not n or "reel" not in n:
+        return False
+    video_exts = (".mp4", ".mov", ".m4v", ".webm")
+    return not n.endswith(video_exts)
+
+
 def ig_post_type(image_path):
     """Buffer needs the post type declared. Infer it the same way the art
     pipeline does, from the filename.
@@ -1229,6 +1243,16 @@ def deliver(brand, post, platform):
         return outcome(post_threads(brand, body))
 
     if platform == "instagram":
+        # Reels-named still image (2026-08-14 18:00 UTC failure): the block was
+        # `image: handy-hearts-ig-reel-porch-scene-2026-08-14.jpg` and Buffer's
+        # Instagram channel is configured Reels-only, so it rejected the post
+        # even though ig_post_type() correctly returned 'post'. Rather than let
+        # Buffer fail the whole run, catch the mismatch at delivery time and
+        # emit a skip with a clear editorial fix (rename the asset or attach a
+        # real video).
+        if is_reel_named_stillframe(image):
+            return "skip", (f"asset '{image}' has 'reel' in the name but is not "
+                            f"a video - rename it or provide an .mp4/.mov")
         # Prefer Buffer; the direct Meta Graph route needs an app review this
         # account does not have. Fall back to it only if Buffer is unconfigured.
         if buffer_token() and BUFFER_CHANNELS.get("instagram"):
@@ -1242,6 +1266,10 @@ def deliver(brand, post, platform):
         return outcome(res, "via Buffer" if buffer_token() else "via Meta Graph")
 
     if platform == "buffer_instagram":
+        # See note in the 'instagram' branch above.
+        if is_reel_named_stillframe(image):
+            return "skip", (f"asset '{image}' has 'reel' in the name but is not "
+                            f"a video - rename it or provide an .mp4/.mov")
         # Only the Pinterest reroute is capped. A post explicitly scheduled to
         # Instagram is a deliberate editorial choice and always goes; the cap
         # exists to stop rerouted pins from flooding the account.
