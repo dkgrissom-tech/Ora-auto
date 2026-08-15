@@ -1364,6 +1364,17 @@ def write_summary(results, hour):
         f.write("\n".join(lines) + "\n")
 
 
+# How many previous UTC hours to sweep for undelivered blocks on every tick.
+# GitHub Actions cron drift routinely skips a scheduled hour when the runner
+# queue is busy (2026-08-15 skipped 02:xx entirely: last tick at 01:52, next
+# at 03:07), which orphaned the 02:00 Grissom block forever under the old
+# `hour == now.hour` filter. Sweeping the current hour plus the previous two
+# gives cron up to ~2h of drift to recover from. Idempotency is enforced by
+# the ledger (see post_key), so a block delivered on its own hour will not
+# be re-sent on the catch-up sweep.
+CATCHUP_HOURS = 2
+
+
 def main():
     now = dt.datetime.utcnow()
     log(f"Scheduler tick @ {now.isoformat()}Z (hour={now.hour})")
@@ -1374,16 +1385,24 @@ def main():
     ledger = load_ledger()
     results = []
 
+    # Sweep the current hour and up to CATCHUP_HOURS previous hours so a
+    # cron-drift gap does not silently drop posts. Same-day only: a block
+    # at 23:00 missed by a tick that fires past 00:00 UTC is not recovered
+    # because parse_today() reads today's file.
+    eligible_hours = {(now.hour - i) % 24 for i in range(CATCHUP_HOURS + 1)}
+
     for brand in BRANDS:
         for p in parse_today(brand):
-            if p["hour"] != now.hour:
+            if p["hour"] not in eligible_hours:
                 continue
+            if p["hour"] != now.hour:
+                log(f"[{brand}] catching up {p['hour']:02d}:00 block on {now.hour:02d}:00 tick")
             targets = route(p["platforms"], brand=brand)
             log(f"[{brand}] {p['platforms']} -> {targets}: {p['body'][:70]}...")
             for plat in targets:
                 key = post_key(brand, p, plat)
                 if key in ledger:
-                    log(f"[{brand}] {plat} already delivered this hour - skipping")
+                    log(f"[{brand}] {plat} already delivered - skipping")
                     continue
                 try:
                     status, detail = deliver(brand, p, plat)
