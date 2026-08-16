@@ -129,7 +129,11 @@ jobs:
         run: |
           git config user.name  "ora-auto[bot]"
           git config user.email "ora-auto@users.noreply.github.com"
+          # Stage the delivery ledger plus the new resilience JSONL logs.
+          # failures.jsonl / successes.jsonl / transients.jsonl are created
+          # on first write; -f allows staging files not yet tracked.
           git add -f logs/posted.json 2>/dev/null || true
+          git add -f logs/failures.jsonl logs/successes.jsonl logs/transients.jsonl 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "ledger unchanged"
             exit 0
