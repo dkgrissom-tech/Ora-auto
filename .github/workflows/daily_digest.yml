@@ -1,0 +1,37 @@
+name: Daily Digest
+
+# Sends one summary email at 9am CT covering all failures in the last 24h.
+# Replaces per-tick failure emails during platform outages (e.g. 4h Bluesky
+# outage = 0 spam emails, 1 digest next morning).
+#
+# Post-merge step Don must complete:
+#   Settings → Notifications → uncheck "Send notifications for failed workflows"
+#   for this repo — that is what actually stops per-tick failure emails.
+#   The digest is the replacement signal.
+#
+# Secret required (add once in GitHub UI):
+#   DIGEST_RECIPIENT_EMAIL  — your primary email address
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # 09:00 CT (UTC-5 standard / UTC-6 daylight)
+  workflow_dispatch: {}      # also runnable manually for testing
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Send digest
+        env:
+          MAILERLITE_API_KEY: ${{ secrets.GRISSOM_MAILERLITE_API_KEY }}
+          DIGEST_RECIPIENT: ${{ secrets.DIGEST_RECIPIENT_EMAIL }}
+        run: python scripts/send_daily_digest.py
