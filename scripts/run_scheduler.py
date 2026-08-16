@@ -205,19 +205,36 @@ def post_bluesky(brand, text, image_path=None, alt_text=None):
         detail = f" with image {image_path} ({len(blob)}B)" if blob else ""
         log(f"[{brand}] [DRY] Bluesky post{detail}: {text[:60]}...")
         return True
-    try:
-        client = Client()
-        client.login(handle, password)
-        if blob:
-            client.send_image(text=text[:300], image=blob, image_alt=alt[:1000])
-            log(f"[{brand}] Bluesky posted OK with image {image_path}")
-        else:
-            client.send_post(text=text[:300])
-            log(f"[{brand}] Bluesky posted OK")
-        return True
-    except Exception as e:
-        log(f"[{brand}] Bluesky FAIL: {e}")
-        return False
+    # atproto's Client.login() calls get_profile() internally which sometimes
+    # times out even when auth is valid. Retry once with a longer timeout
+    # before giving up. Also log exception type since some atproto exceptions
+    # stringify to empty (InvokeTimeoutError, etc.).
+    last_exc = None
+    for attempt in (1, 2):
+        try:
+            client = Client()
+            # Bump the default 5s httpx timeout to 30s to survive slow profile fetches.
+            try:
+                client.request._client.timeout = 30.0  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            client.login(handle, password)
+            if blob:
+                client.send_image(text=text[:300], image=blob, image_alt=alt[:1000])
+                log(f"[{brand}] Bluesky posted OK with image {image_path}")
+            else:
+                client.send_post(text=text[:300])
+                log(f"[{brand}] Bluesky posted OK")
+            return True
+        except Exception as e:
+            last_exc = e
+            err_repr = f"{type(e).__name__}: {str(e) or repr(e)}"
+            if attempt == 1:
+                log(f"[{brand}] Bluesky attempt 1 failed ({err_repr}) - retrying")
+                continue
+            log(f"[{brand}] Bluesky FAIL: {err_repr}")
+            return False
+    return False
 
 def post_linkedin(brand, text):
     import requests
