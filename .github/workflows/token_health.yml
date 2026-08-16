@@ -1,0 +1,72 @@
+name: Token Health Check
+
+# Checks Meta long-lived tokens and Pinterest refresh tokens for each brand.
+# Opens or updates a GitHub Issue when any token expires in <10 days.
+# Runs weekly; also dispatchable manually for one-off verification.
+#
+# Secret required for issue creation:
+#   GITHUB_TOKEN is provided automatically by Actions (no setup needed)
+
+on:
+  schedule:
+    - cron: '0 13 * * 0'   # Sundays 08:00 CT (UTC-5) / 09:00 CDT (UTC-6)
+  workflow_dispatch: {}      # run manually to test or force a check
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # to persist logs/token_created.json
+      issues: write        # to open / update token-expiry issues
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check token health
+        env:
+          # Meta — one long-lived token per brand (covers Instagram + Threads)
+          ORA_META_LONG_TOKEN:        ${{ secrets.ORA_META_LONG_TOKEN }}
+          ORA_META_APP_ID:            ${{ secrets.ORA_META_APP_ID }}
+          ORA_META_APP_SECRET:        ${{ secrets.ORA_META_APP_SECRET }}
+          GRISSOM_META_LONG_TOKEN:    ${{ secrets.GRISSOM_META_LONG_TOKEN }}
+          GRISSOM_META_APP_ID:        ${{ secrets.GRISSOM_META_APP_ID }}
+          GRISSOM_META_APP_SECRET:    ${{ secrets.GRISSOM_META_APP_SECRET }}
+          FAMILYBOOK_META_LONG_TOKEN: ${{ secrets.FAMILYBOOK_META_LONG_TOKEN }}
+          FAMILYBOOK_META_APP_ID:     ${{ secrets.FAMILYBOOK_META_APP_ID }}
+          FAMILYBOOK_META_APP_SECRET: ${{ secrets.FAMILYBOOK_META_APP_SECRET }}
+          # Pinterest — refresh tokens tracked by creation date
+          ORA_PINTEREST_REFRESH_TOKEN:        ${{ secrets.ORA_PINTEREST_REFRESH_TOKEN }}
+          ORA_PINTEREST_APP_ID:               ${{ secrets.ORA_PINTEREST_APP_ID }}
+          ORA_PINTEREST_APP_SECRET:           ${{ secrets.ORA_PINTEREST_APP_SECRET }}
+          GRISSOM_PINTEREST_REFRESH_TOKEN:    ${{ secrets.GRISSOM_PINTEREST_REFRESH_TOKEN }}
+          GRISSOM_PINTEREST_APP_ID:           ${{ secrets.GRISSOM_PINTEREST_APP_ID }}
+          GRISSOM_PINTEREST_APP_SECRET:       ${{ secrets.GRISSOM_PINTEREST_APP_SECRET }}
+          FAMILYBOOK_PINTEREST_REFRESH_TOKEN: ${{ secrets.FAMILYBOOK_PINTEREST_REFRESH_TOKEN }}
+          FAMILYBOOK_PINTEREST_APP_ID:        ${{ secrets.FAMILYBOOK_PINTEREST_APP_ID }}
+          FAMILYBOOK_PINTEREST_APP_SECRET:    ${{ secrets.FAMILYBOOK_PINTEREST_APP_SECRET }}
+          # GitHub token for issue management (provided automatically by Actions)
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/check_token_health.py
+
+      - name: Persist token creation timestamps
+        if: always()
+        run: |
+          git config user.name  "ora-auto[bot]"
+          git config user.email "ora-auto@users.noreply.github.com"
+          git add -f logs/token_created.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "token_created.json unchanged"
+            exit 0
+          fi
+          git commit -q -m "chore(token-health): update token_created.json [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase -q origin main && git push -q origin main && exit 0
+            echo "push race, retrying ($i)"
+            sleep 5
+          done
+          echo "::warning::could not persist token_created.json after 3 attempts"
