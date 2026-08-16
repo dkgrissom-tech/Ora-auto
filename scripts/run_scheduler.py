@@ -45,6 +45,99 @@ def log(msg):
     with open(LOG_DIR / "scheduler.log", "a") as f:
         f.write(line + "\n")
 
+
+# ---------------------------------------------------------------------------
+# Resilience — JSONL event logs (Feature 1 + Feature 3)
+#
+# Three append-only JSONL files accumulate across runs. The daily digest
+# script reads them with a 24h time window filter. They are persisted to the
+# repo the same way posted.json is, via the "Persist delivery ledger" step.
+# ---------------------------------------------------------------------------
+import json as _json
+
+def _append_jsonl(filename, record):
+    """Append one JSON line to logs/<filename>.jsonl. Never raises."""
+    try:
+        with open(LOG_DIR / filename, "a") as f:
+            f.write(_json.dumps(record) + "\n")
+    except Exception as e:
+        log(f"[jsonl] could not write {filename}: {e}")
+
+
+def _classify(e) -> str:
+    """Return 'transient' for retryable 5xx/network errors, 'failed' otherwise.
+
+    Transient = the platform is temporarily down; the same post will be
+    retried on the next tick (ledger key not written). Classified as
+    transient so it does NOT count toward the daily digest failure alert.
+    Failed = token expired, bad request, permanent — needs human action.
+    """
+    import socket
+    import urllib.error
+    try:
+        import requests as _req
+        _req_exc = (
+            _req.exceptions.ConnectionError,
+            _req.exceptions.Timeout,
+            _req.exceptions.ReadTimeout,
+        )
+    except ImportError:
+        _req_exc = ()
+
+    if isinstance(e, (socket.timeout, urllib.error.URLError) + _req_exc):
+        return 'transient'
+
+    # atproto-specific transient exceptions
+    if type(e).__name__ in ('NetworkError', 'InvokeTimeoutError'):
+        return 'transient'
+
+    # HTTP 5xx surfaced as a response attribute (e.g. requests.HTTPError)
+    resp = getattr(e, 'response', None)
+    if resp is not None and 500 <= getattr(resp, 'status_code', 0) < 600:
+        return 'transient'
+
+    # 5xx surfaced in the string representation (last resort)
+    err_str = str(e) + repr(e)
+    if 'status_code=5' in err_str or '5xx' in err_str.lower():
+        return 'transient'
+
+    return 'failed'
+
+
+def record_failure(brand, channel, error_type, error_msg):
+    """Append a real (non-transient) failure to logs/failures.jsonl."""
+    _append_jsonl("failures.jsonl", {
+        "ts": dt.datetime.utcnow().isoformat() + "Z",
+        "brand": brand,
+        "channel": channel,
+        "error_type": error_type,
+        "error_msg": error_msg,
+    })
+
+
+def record_success(brand, channel):
+    """Append a successful post to logs/successes.jsonl."""
+    _append_jsonl("successes.jsonl", {
+        "ts": dt.datetime.utcnow().isoformat() + "Z",
+        "brand": brand,
+        "channel": channel,
+    })
+
+
+def record_transient(brand, channel, error_type, error_msg):
+    """Append a transient 5xx/network error to logs/transients.jsonl.
+
+    Transients do NOT appear in the daily digest unless the same
+    brand/channel accumulates >20 in 24h (promoted to failure in digest).
+    """
+    _append_jsonl("transients.jsonl", {
+        "ts": dt.datetime.utcnow().isoformat() + "Z",
+        "brand": brand,
+        "channel": channel,
+        "error_type": error_type,
+        "error_msg": error_msg,
+    })
+
 def secret(brand, key):
     """Read a brand-prefixed secret from env. e.g. secret('ora', 'X_API_KEY')
     looks for ORA_X_API_KEY."""
@@ -1449,15 +1542,39 @@ def main():
                 if key in ledger:
                     log(f"[{brand}] {plat} already delivered - skipping")
                     continue
+                raw_exc = None
                 try:
                     status, detail = deliver(brand, p, plat)
                 except Exception as e:
+                    raw_exc = e
                     status, detail = "fail", f"unhandled: {e}"
                     log(f"[{brand}] {plat} FAIL (unhandled): {e}")
                 if status == "ok":
                     ledger.add(key)
+                    record_success(brand, plat)
+                elif status == "fail":
+                    # Classify: transient 5xx vs real failure. For unhandled
+                    # exceptions we have the raw exception; for handled failures
+                    # (where deliver() already ate the exception and returned False)
+                    # fall back to string-sniffing the detail.
+                    exc_to_classify = raw_exc
+                    if exc_to_classify is None:
+                        # Synthesise a lightweight stand-in so _classify can
+                        # inspect the detail string via str(e).
+                        exc_to_classify = Exception(detail)
+                    kind = _classify(exc_to_classify)
+                    err_type = type(raw_exc).__name__ if raw_exc else "PostError"
+                    if kind == 'transient':
+                        log(f"TRANSIENT: {brand}/{plat} {detail}")
+                        record_transient(brand, plat, err_type, detail)
+                        # Transients are not ledger-committed — the next tick
+                        # will retry the same block.
+                    else:
+                        log(f"FAILED: {brand}/{plat} {detail}")
+                        record_failure(brand, plat, err_type, detail)
                 results.append({"brand": brand, "platform": plat, "status": status,
-                                "detail": detail, "preview": p["body"][:60]})
+                                "detail": detail, "preview": p["body"][:60],
+                                "_kind": kind if status == "fail" else status})
 
     save_ledger(ledger)
 
@@ -1467,18 +1584,15 @@ def main():
     log(f"Tick complete: {ok} published, {len(failed)} failed, {skipped} skipped")
     write_summary(results, now.hour)
 
-    if failed:
-        for r in failed:
-            log(f"FAILED: {r['brand']}/{r['platform']} {r['detail']}")
-        # Only red-X the whole run when every attempted post failed. A single
-        # malformed IG draft should not kill an otherwise successful tick;
-        # individual failures already log loudly and show up red in the run
-        # summary table so nothing goes silent. But if we tried to publish
-        # and nothing landed, exit non-zero — that is the outage signal we
-        # actually want (Pinterest ran silent-green for five days before the
-        # exit(1) went in on 2026-08-06).
-        if ok == 0:
-            sys.exit(1)
+    # FAILED/TRANSIENT lines are now emitted inside the delivery loop above,
+    # so we don't re-log them here. Preserve the exit-1 signal: if we tried
+    # to publish and nothing succeeded, red-X the run so Actions notifies.
+    # (Transients count as "tried but didn't land" for this purpose — a full
+    # Bluesky outage still produces the exit-1 until Don disables workflow
+    # failure emails in repo notification settings, per the post-merge checklist.)
+    real_failures = [r for r in results if r["status"] == "fail"]
+    if real_failures and ok == 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
