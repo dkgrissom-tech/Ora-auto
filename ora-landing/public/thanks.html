@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ora — Check your email</title>
+  <meta name="description" content="Your iPhone Meeting Playbook is on its way.">
+  <meta name="robots" content="noindex, follow">
+
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png">
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="brand">
+    <span class="brand-dot"></span>
+    <span class="brand-name">Ora</span>
+  </a>
+  <nav class="site-nav">
+    <a href="/#how-it-works">How it works</a>
+    <a href="/#pricing">Pricing</a>
+    <a href="/#zara">Meet Zara</a>
+    <a href="/#faq">FAQ</a>
+  </nav>
+  <a href="/#hero-form" class="nav-cta" data-track="cta" data-cta-name="nav_cta">
+    Get the playbook
+  </a>
+</header>
+
+<main class="thanks-main">
+  <h1>Check your email.</h1>
+  <p>The iPhone Meeting Playbook is on its way. Should hit your inbox in the next 2 minutes.</p>
+  <p>Didn't see it? Check spam, or <a href="mailto:hello@meetora.app">email us</a>.</p>
+  <p><a href="/">← Back to Ora</a></p>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-dot"></span> Ora
+      <p class="footer-tagline">The iPhone meeting recorder.</p>
+    </div>
+    <nav class="footer-nav">
+      <a href="/disclosure">Disclosure &amp; Terms</a>
+      <a href="mailto:hello@meetora.app">Contact</a>
+      <a href="https://tiktok.com/@meetora" rel="noopener">TikTok</a>
+    </nav>
+    <p class="footer-copy">© 2026 Ora. Built in Tulsa, OK by Don Grissom.</p>
+  </div>
+</footer>
+
+<script src="/assets/js/track.js" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.oraTrack) {
+      window.oraTrack('email_capture', { form_id: 'thanks_fallback', page: window.location.pathname });
+    }
+  });
+</script>
+</body>
+</html>
