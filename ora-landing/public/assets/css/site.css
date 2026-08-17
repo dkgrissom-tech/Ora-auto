@@ -462,7 +462,9 @@ section {
   border-radius: 16px;
   margin-bottom: 16px;
   aspect-ratio: 9/16;
-  object-fit: cover;
+  /* contain, not cover: real iPhone screenshots run taller than 9/16 and
+     cover was cropping the primary CTA button off the bottom of the frame */
+  object-fit: contain;
   background: var(--surface);
 }
 
