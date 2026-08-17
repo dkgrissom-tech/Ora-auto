@@ -80,14 +80,22 @@ lingering Web3Forms references, a missing tracker script, a missing
    exist anywhere in this repo. `track.js` is a fresh, minimal implementation
    of the behavior Step 7 of the brief describes — swap it for the real
    PR #10 tracker if it differs.
-2. **Zara imagery and app screenshots are not yet supplied**, so the hero
-   and "Meet Zara" sections render the dark-navy placeholder pattern from
-   Step 2, and the "How it works" steps use the `.how-image-placeholder`
-   pattern already defined in the CSS for step 4. Drop the real files into
-   `public/assets/img/` (`zara-hero.jpg`, `zara-quote.jpg`,
-   `ora-app-screen-1.png`, `ora-app-screen-2.png`, `ora-app-screen-3.png`)
-   and swap the placeholder `<div>`s for `<img>` tags — dimensions already
-   match so layout won't shift.
+2. **Zara imagery**: `zara-hero.jpg` and `zara-quote.jpg` are cropped from
+   the "Zara Canonical Reference - Look A" portrait Don supplied. That
+   source is a professional office headshot (blazer, glasses, office
+   background) — not literally "at a coffee shop, iPhone flat on the
+   table" as the original brief's alt text described, so the alt text was
+   rewritten to describe what's actually in the photo
+   (`"Zara, smiling, wearing glasses and a blazer"` /
+   `"Zara, close-up portrait, smiling"`). The hero/final-CTA copy still
+   tells the coffee-shop story; if Don wants the photo to match that scene
+   literally, a coffee-shop generation should replace this one — otherwise
+   this canonical portrait is a fine "meet the person" identity shot as-is.
+   **App screenshots** (`ora-app-screen-1/2/3.png`) are still not supplied,
+   so the "How it works" steps use the `.how-image-placeholder` pattern —
+   drop the real files into `public/assets/img/` and swap the placeholder
+   `<div>`s for `<img>` tags when ready; dimensions already match so layout
+   won't shift.
 3. **`favicon.png` and `og-card.png`** are solid-color placeholders
    (generated, not designed) so the page doesn't 404 on those assets.
    Replace with real brand assets when available.
