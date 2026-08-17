@@ -1,66 +1,45 @@
-/**
- * Ora landing page tracker.
- *
- * NOTE FOR DON: the build brief points at "PR #10" for a tracker snippet to
- * copy verbatim, but PR #10 in dkgrissom-tech/Ora-auto is an unrelated
- * Instagram-posting bugfix, and none of the referenced context docs
- * (ora-auto-pr10-claude-direction.md, etc.) exist in this repo. This file
- * is a fresh, minimal implementation of the behavior Step 7 of the brief
- * describes (page_view / cta_click / email_capture -> TRACKER_ENDPOINT).
- * Swap it for the real PR #10 tracker.js if it differs from this.
- */
 (function () {
-  var ENDPOINT = (window.ORA_TRACKER_ENDPOINT || 'https://track.grissompress.com') + '/collect';
+  var ENDPOINT = "https://track.grissompress.com/e";
+  var BRAND = (document.currentScript && document.currentScript.dataset.brand) || "grissom";
 
-  function utmParams() {
-    var params = new URLSearchParams(window.location.search);
-    return {
-      utm_source: params.get('utm_source') || '',
-      utm_medium: params.get('utm_medium') || '',
-      utm_campaign: params.get('utm_campaign') || '',
-      utm_content: params.get('utm_content') || '',
-    };
+  var sid = sessionStorage.getItem("_gpsid");
+  if (!sid) {
+    sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    sessionStorage.setItem("_gpsid", sid);
   }
 
-  function send(event, props) {
-    var payload = Object.assign(
-      {
-        event: event,
-        page: window.location.pathname,
-        referrer: document.referrer || '',
-        ts: new Date().toISOString(),
-      },
-      utmParams(),
-      props || {}
-    );
+  var q = new URLSearchParams(location.search);
+  var ctx = {
+    brand: BRAND,
+    post_id:      q.get("utm_content") || null,
+    platform:     q.get("utm_source")  || null,
+    utm_content:  q.get("utm_content"),
+    utm_campaign: q.get("utm_campaign"),
+    session_id:   sid,
+    page_url:     location.href,
+    referrer:     document.referrer || null,
+  };
 
-    var body = JSON.stringify(payload);
-
-    if (navigator.sendBeacon) {
-      var blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon(ENDPOINT, blob);
-      return;
-    }
-
-    fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body,
-      keepalive: true,
-    }).catch(function (err) {
-      console.error('Tracker send failed', err);
-    });
+  function send(event, extra) {
+    var body = Object.assign({}, ctx, { event: event }, extra || {});
+    var blob = new Blob([JSON.stringify(body)], { type: "application/json" });
+    if (navigator.sendBeacon) navigator.sendBeacon(ENDPOINT, blob);
+    else fetch(ENDPOINT, { method: "POST", body: JSON.stringify(body), keepalive: true, headers: { "content-type": "application/json" } });
   }
 
-  window.oraTrack = send;
+  send("page_view");
 
-  document.addEventListener('DOMContentLoaded', function () {
-    send('page_view');
-
-    document.querySelectorAll('[data-track="cta"]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        send('cta_click', { cta_name: el.getAttribute('data-cta-name') || '' });
-      });
-    });
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-cta], a[href*='gumroad.com'], a[href*='cedarhollow']");
+    if (!el) return;
+    send("cta_click", { cta: el.getAttribute("data-cta") || el.getAttribute("href") });
   });
+
+  document.addEventListener("submit", function (e) {
+    var f = e.target.closest("form[data-capture='email']");
+    if (!f) return;
+    send("email_capture");
+  });
+
+  window.gp = { track: send };
 })();
