@@ -1,0 +1,15 @@
+# Grissom Capital — Finance/Markets seed channels
+# Format: one channelId per line. Comments start with #.
+# Sourced 2026-08-23 — mid-size (50k-1M subs), English, active last 30d.
+# Bias: personal finance, macro, markets, faceless FIRE (matches our production model).
+
+UC1PQeHup1K-CAT0E6xA-UEA  # Humphrey Yang (mass-market personal finance)
+UCtPdiTVqTkg3t3PjQZqOaCA  # Bald Guy Money (tax & retirement)
+UC1dVfl5-I98WX3yCy8IJQMg  # Quiet Quest (faceless FIRE — closest to our model)
+UCASM0cgfkJxQ1ICmRilfHLw  # Patrick Boyle (macro finance current events)
+UCOErWFfNOQzXsgE7f5S_ULw  # Ben Felix (evidence-based investing)
+UCpvyOqtEc86X8w8_Se0t4-w  # George Gammon (macro whiteboard style)
+UCIbslwukNCyVp-XMz_2-gmw  # Rose Han (women + finance)
+UCIUp-gpUqBTZFH7zwLSE5gQ  # NerdWallet (personal finance)
+UCSPYNpQ2fHv9HJ-q6MIMaPw  # Two Cents PBS (production quality benchmark)
+UCNIoLiHvnuKTKoJuLQUS--A  # Mark Tilbury (wealth building)

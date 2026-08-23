@@ -1,0 +1,15 @@
+# Grissom War Room — Military/War History seed channels
+# Format: one channelId per line. Comments start with #.
+# Sourced 2026-08-23 — mid-size to large (300k-4M subs), English, active last 30d.
+# Bias: animated battle explainers, faceless narration, decision-focused history.
+
+UCCGvq-qmjFmmMD4e-PLQqGg  # Kings and Generals (animated battles — model channel)
+UCUcyEsEjhPEDf69RRVhRh4A  # Real Time History (WW1/WW2 documentaries)
+UCR3L1IGpxPDuHWQjqfz608g  # Mark Felton Productions (WW2 short documentaries)
+UC7Ay_bxnYWSS9ZDPpqAE1RQ  # The Operations Room (modern conflict maps)
+UCEMmqnod6rgtHes05Y6qZTA  # Epic History TV (long-arc narrative)
+UC5s36sYsj8C6G9NBqtBFKbw  # Military History Visualized (WW2 analysis)
+UCpIjLJ6XfEj5rtU2dtZkV9Q  # Historigraph (map-driven battles)
+UCN9v4QG3AQEP3zuRvVs2dAg  # SandRhoman History (ancient/medieval combat)
+UCSnsFsxiiWcOQTQWzQPst3g  # The History Guy (short-form history)
+UCT6Y5JJPKe_JDMivpKgVXew  # Fall of Civilizations (long-arc collapse narratives)
