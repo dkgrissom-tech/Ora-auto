@@ -4593,3 +4593,33 @@
 [2026-08-23T12:01:33.015290Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-08-23T12:01:33.015326Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
 [2026-08-23T12:01:33.015353Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
+[2026-08-23T13:21:36.832734Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-08-23T13:21:36.833587Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-08-23T13:21:36.833689Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-08-23T13:21:36.833753Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-23T13:21:36.834604Z] [ingest] [grissom] wrote: 2026-09-10 00:00 UTC (id=68d15e1dc081, platforms=['bluesky']) -> brands/grissom/posts/2026-09-10.md
+[2026-08-23T13:21:36.834755Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-09-evening.md
+[2026-08-23T13:21:36.835102Z] [ingest] [grissom] wrote: 2026-09-09 14:00 UTC (id=df97db3b2be8, platforms=['bluesky']) -> brands/grissom/posts/2026-09-09.md
+[2026-08-23T13:21:36.835227Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-09-morning.md
+[2026-08-23T13:21:36.835528Z] [ingest] [grissom] wrote: 2026-09-11 00:00 UTC (id=6a916fc0a3b4, platforms=['bluesky']) -> brands/grissom/posts/2026-09-11.md
+[2026-08-23T13:21:36.835653Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-10-evening.md
+[2026-08-23T13:21:36.835930Z] [ingest] [grissom] wrote: 2026-09-10 14:00 UTC (id=06338141395f, platforms=['bluesky']) -> brands/grissom/posts/2026-09-10.md
+[2026-08-23T13:21:36.836053Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-10-morning.md
+[2026-08-23T13:21:36.836330Z] [ingest] [grissom] wrote: 2026-09-12 00:00 UTC (id=7c32290b7ca5, platforms=['bluesky']) -> brands/grissom/posts/2026-09-12.md
+[2026-08-23T13:21:36.836449Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-11-evening.md
+[2026-08-23T13:21:36.836704Z] [ingest] [grissom] wrote: 2026-09-11 14:00 UTC (id=e593c1b229fe, platforms=['bluesky']) -> brands/grissom/posts/2026-09-11.md
+[2026-08-23T13:21:36.836841Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-11-morning.md
+[2026-08-23T13:21:36.837149Z] [ingest] [grissom] wrote: 2026-09-13 00:00 UTC (id=59b1de7879db, platforms=['bluesky']) -> brands/grissom/posts/2026-09-13.md
+[2026-08-23T13:21:36.837277Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-12-evening.md
+[2026-08-23T13:21:36.837560Z] [ingest] [grissom] wrote: 2026-09-12 14:00 UTC (id=2d0d83ae9173, platforms=['bluesky']) -> brands/grissom/posts/2026-09-12.md
+[2026-08-23T13:21:36.837691Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-12-morning.md
+[2026-08-23T13:21:36.838022Z] [ingest] [grissom] wrote: 2026-09-14 00:00 UTC (id=0dc6027079b2, platforms=['bluesky']) -> brands/grissom/posts/2026-09-14.md
+[2026-08-23T13:21:36.838147Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-13-evening.md
+[2026-08-23T13:21:36.838407Z] [ingest] [grissom] wrote: 2026-09-13 14:00 UTC (id=2e25c42e2b2b, platforms=['bluesky']) -> brands/grissom/posts/2026-09-13.md
+[2026-08-23T13:21:36.838532Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260823T132136Z__grissom-bluesky-2026-09-13-morning.md
+[2026-08-23T13:21:36.838660Z] [ingest] [grissom] WARN: TikTok not allowed for this brand — dropping tiktok
+[2026-08-23T13:21:36.838714Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-08-23T13:21:36.838787Z] [ingest] [grissom] summary: {'drafts': 11, 'blocks': 11, 'wrote': 10, 'skipped': 0, 'invalid': 1}
+[2026-08-23T13:21:36.838962Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-08-23T13:21:36.839027Z] [ingest] TOTAL: {'drafts': 13, 'blocks': 11, 'wrote': 10, 'skipped': 0, 'invalid': 1}
+[2026-08-23T13:21:36.839072Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
