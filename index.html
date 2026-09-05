@@ -3,185 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pip the Pumpkin — A Halloween Coloring Book | Grissom Press</title>
-  <meta name="description" content="A cozy Halloween coloring book for kids ages 3–5. 12 hand-drawn coloring pages + storybook text. Instant PDF download.">
+  <title>Grissom Press — Cozy Halloween Books for Kids</title>
+  <meta name="description" content="Small-batch watercolor Halloween picture books for kids ages 3-5. Instant PDF downloads, printable at home.">
   <meta name="robots" content="index, follow">
-
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Pip the Pumpkin — A Halloween Coloring Book">
-  <meta property="og:description" content="12 cozy coloring pages for kids ages 3–5. Instant PDF download.">
-  <meta property="og:image" content="/assets/img/pip-cover.png">
-
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Pip the Pumpkin — A Halloween Coloring Book">
-  <meta name="twitter:description" content="12 cozy coloring pages for kids ages 3–5. Instant PDF download.">
-  <meta name="twitter:image" content="/assets/img/pip-cover.png">
-
+  <meta property="og:title" content="Grissom Press — Cozy Halloween Books for Kids">
+  <meta property="og:description" content="Watercolor Halloween picture books for kids ages 3-5.">
+  <meta property="og:image" content="assets/img/pip-cover.png">
   <link rel="stylesheet" href="assets/css/site.css">
   <link rel="stylesheet" href="assets/css/shop.css">
-  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <style>
+    .storefront-hero { padding: 6rem 1.5rem 3rem; text-align: center; max-width: 780px; margin: 0 auto; }
+    .storefront-hero .hero-eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 1rem; }
+    .storefront-hero h1 { font-family: var(--serif, Georgia, serif); font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.15; margin: 0 0 1.25rem; }
+    .storefront-hero h1 em { color: var(--accent); font-style: italic; }
+    .storefront-hero .hero-sub { color: var(--text-muted, #b8b3c8); font-size: 1.05rem; line-height: 1.6; }
+    .book-grid { max-width: 1150px; margin: 3rem auto 6rem; padding: 0 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
+    .book-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; overflow: hidden; text-decoration: none; color: inherit; transition: transform 0.2s ease, border-color 0.2s ease; display: flex; flex-direction: column; }
+    .book-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+    .book-card .cover-wrap { aspect-ratio: 3/4; overflow: hidden; background: #000; }
+    .book-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .book-card .card-body { padding: 1.25rem 1.4rem 1.5rem; }
+    .book-card h3 { font-family: var(--serif, Georgia, serif); font-size: 1.35rem; line-height: 1.25; margin: 0 0 0.5rem; }
+    .book-card p { color: var(--text-muted, #b8b3c8); font-size: 0.92rem; line-height: 1.5; margin: 0 0 1rem; }
+    .book-card .price-row { display: flex; align-items: center; justify-content: space-between; }
+    .book-card .price { font-weight: 700; color: var(--accent); font-size: 1.05rem; }
+    .book-card .view-cta { font-size: 0.85rem; color: var(--text-muted, #b8b3c8); }
+  </style>
 </head>
 <body class="shop">
 
 <header class="site-header">
-  <a href="/" class="brand">
-    <span class="brand-dot"></span>
-    <span class="brand-name">Grissom Press</span>
-  </a>
-  <nav class="site-nav">
-    <a href="#book">The book</a>
-    <a href="#inside">Inside</a>
-    <a href="#faq">FAQ</a>
-  </nav>
-  <a href="#buy" class="nav-cta">Buy — $4.99</a>
+  <a href="/" class="brand"><span class="brand-dot"></span><span class="brand-name">Grissom Press</span></a>
+  <nav class="site-nav"><a href="#books">Books</a><a href="#about">About</a></nav>
 </header>
 
 <main>
 
-<section class="hero shop-hero" id="hero">
-  <div class="hero-grid">
-    <div class="hero-copy">
-      <p class="hero-eyebrow">A cozy Halloween coloring book</p>
-      <h1 class="hero-headline">
-        Pip the Pumpkin.<br>
-        <em>The smallest one in the patch.</em>
-      </h1>
-      <p class="hero-sub">
-        12 hand-drawn coloring pages and a warm bedtime story about the tiniest
-        pumpkin finding his glow. Made for kids ages 3–5. Instant PDF download,
-        print at home as many times as you like.
-      </p>
+<section class="storefront-hero">
+  <p class="hero-eyebrow">Small-batch Halloween picture books</p>
+  <h1>Cozy stories for the <em>smallest readers in your patch.</em></h1>
+  <p class="hero-sub">
+    Hand-illustrated watercolor picture books for kids ages 3–5. Warm, cute-not-scary
+    Halloween stories about pumpkins, ghosts, and black cats who learn that being
+    kind is the best magic there is. Instant PDF downloads — print at home.
+  </p>
+</section>
 
-      <a href="#buy" class="hero-cta" id="heroBuyBtn">
-        Get the PDF — $4.99
-      </a>
+<section id="books">
+  <div class="book-grid">
 
-      <ul class="hero-trust">
-        <li>✓ 12 coloring pages + full story</li>
-        <li>✓ Print at home, unlimited copies</li>
-        <li>✓ Instant download after checkout</li>
-      </ul>
-    </div>
+    <a href="pip/" class="book-card">
+      <div class="cover-wrap"><img src="assets/img/pip-cover.png" alt="Pip the Pumpkin"></div>
+      <div class="card-body">
+        <h3>Pip the Pumpkin</h3>
+        <p>The smallest pumpkin in the patch learns his crooked smile is exactly right.</p>
+        <div class="price-row"><span class="price">$4.99</span><span class="view-cta">View book →</span></div>
+      </div>
+    </a>
 
-    <div class="hero-visual">
-      <img src="assets/img/pip-cover.png" alt="Pip the Pumpkin book cover"
-           class="cover-img" width="600" height="800">
-    </div>
+    <a href="bibi/" class="book-card">
+      <div class="cover-wrap"><img src="assets/img/bibi-cover.png" alt="The Ghost Who Forgot How to Boo"></div>
+      <div class="card-body">
+        <h3>The Ghost Who Forgot How to Boo</h3>
+        <p>Bibi the ghost discovers that boo isn't a scary word — it's how you say hello.</p>
+        <div class="price-row"><span class="price">$4.99</span><span class="view-cta">View book →</span></div>
+      </div>
+    </a>
+
+    <a href="midnight/" class="book-card">
+      <div class="cover-wrap"><img src="assets/img/midnight-cover.png" alt="Midnight the Cat Wants Company"></div>
+      <div class="card-body">
+        <h3>Midnight the Cat Wants Company</h3>
+        <p>A lonely black cat throws a Halloween party — and finds that spooky guests make the sweetest friends.</p>
+        <div class="price-row"><span class="price">$4.99</span><span class="view-cta">View book →</span></div>
+      </div>
+    </a>
+
   </div>
 </section>
 
-<section class="book-section" id="book">
-  <div class="content-wrap">
-    <h2>What's inside</h2>
-    <div class="feature-grid">
-      <div class="feature">
-        <div class="feature-num">12</div>
-        <p>Hand-drawn coloring pages with thick, kid-friendly outlines</p>
-      </div>
-      <div class="feature">
-        <div class="feature-num">1</div>
-        <p>Cozy bedtime story about Pip finding his glow on Halloween night</p>
-      </div>
-      <div class="feature">
-        <div class="feature-num">∞</div>
-        <p>Print at home as many times as you want — one file, unlimited copies</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="inside-section" id="inside">
-  <div class="content-wrap">
-    <h2>A peek inside</h2>
-    <p class="section-lede">
-      Every page is thick, bold line art — easy for little hands and crayons.
+<section class="section" id="about">
+  <div class="content-wrap" style="max-width: 720px; text-align: center;">
+    <h2 class="section-title">Made in Tulsa, one story at a time.</h2>
+    <p class="section-body">
+      Grissom Press is a small independent picture-book studio. Every story starts
+      with a little idea — a shy pumpkin, a forgetful ghost, a lonely cat — and
+      grows into a book meant to be read at bedtime, colored in the morning, and
+      loved for years. Instant download. Print at home. Read again tomorrow.
     </p>
-  </div>
-</section>
-
-<section class="buy-section" id="buy">
-  <div class="content-wrap buy-card">
-    <img src="assets/img/pip-cover.png" alt="Pip the Pumpkin cover"
-         class="buy-cover" width="240" height="320">
-    <div class="buy-copy">
-      <h2>Pip the Pumpkin</h2>
-      <p class="buy-desc">A Halloween Coloring Book · 28 pages · Instant PDF</p>
-      <p class="buy-price">$4.99</p>
-      <!-- Stripe Payment Link goes here. Replace REPLACE_ME with your Payment Link URL from Stripe dashboard. -->
-      <a href="https://buy.stripe.com/28E4gz3SygiraP3bB72sM01"
-         class="buy-cta" id="buyBtn"
-         data-utm-carry="true">
-        Buy now — instant download
-      </a>
-      <p class="buy-finepoint">
-        Secure checkout by Stripe. You'll be redirected back here for your
-        download the moment your payment clears.
-      </p>
-    </div>
-  </div>
-</section>
-
-<section class="faq" id="faq">
-  <div class="content-wrap">
-    <h2>FAQ</h2>
-    <details>
-      <summary>What ages is this for?</summary>
-      <p>Best for ages 3–5. Thick outlines, simple shapes, cozy (not scary) art.</p>
-    </details>
-    <details>
-      <summary>How do I get the book after I pay?</summary>
-      <p>Stripe sends you back here to a thank-you page with an instant download
-      button. You'll also get an email backup with the download link.</p>
-    </details>
-    <details>
-      <summary>Can I print it more than once?</summary>
-      <p>Yes. It's a PDF, so you can print each page as many times as you like
-      for your own family's use.</p>
-    </details>
-    <details>
-      <summary>Refunds?</summary>
-      <p>Digital sale, so all sales final — but email
-      hello@grissompress.com if something's wrong with your file and I'll make
-      it right.</p>
-    </details>
   </div>
 </section>
 
 </main>
 
-<footer class="site-footer">
-  <div class="content-wrap">
-    <p>© 2026 Grissom Press. All rights reserved.</p>
-    <p class="footer-links">
-      <a href="mailto:hello@grissompress.com">hello@grissompress.com</a>
-    </p>
-  </div>
-</footer>
-
-<script>
-  // Carry UTM params from landing URL into the Stripe Payment Link,
-  // so payouts + reports show which channel earned the sale.
-  (function () {
-    const btn = document.getElementById('buyBtn');
-    if (!btn) return;
-    const params = new URLSearchParams(window.location.search);
-    const carry = ['utm_source','utm_medium','utm_campaign','utm_content'];
-    const src = new URL(btn.href, window.location.href);
-    let touched = false;
-    carry.forEach(k => {
-      const v = params.get(k);
-      if (v) { src.searchParams.set(k, v); touched = true; }
-    });
-    if (touched) btn.href = src.toString();
-
-    // Also mirror the buy button into the hero CTA scroll target.
-    const heroBtn = document.getElementById('heroBuyBtn');
-    if (heroBtn) heroBtn.addEventListener('click', e => {
-      e.preventDefault();
-      document.getElementById('buy').scrollIntoView({behavior:'smooth'});
-    });
-  })();
-</script>
+<footer class="site-footer"><p>© Grissom Press. Made in Tulsa.</p></footer>
 
 </body>
 </html>
