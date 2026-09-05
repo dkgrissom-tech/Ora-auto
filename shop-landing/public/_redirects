@@ -1,0 +1,3 @@
+# Block direct browser access to the raw PDF path.
+# /download function still reaches it via env.ASSETS.fetch() (bypasses redirects).
+/_files/*  /404  404

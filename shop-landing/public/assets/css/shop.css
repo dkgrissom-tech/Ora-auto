@@ -1,0 +1,182 @@
+/* Grissom Press shop — overrides on top of ora-landing's site.css.
+   Reuses the same tokens (--bg, --accent, etc.) so the brands stay coherent. */
+
+body.shop {
+  --bg: #1a0f1f;         /* deep aubergine */
+  --surface: #241528;
+  --accent: #f39a3c;     /* Halloween pumpkin orange */
+  --accent-hover: #e58721;
+  --border: #3a2440;
+  --text: #f7f2ea;
+  --text-muted: #c9bfb1;
+}
+
+.shop-hero { padding-top: 24px; }
+
+.shop-hero .hero-headline em {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.hero-visual { display: flex; justify-content: center; align-items: center; }
+
+.cover-img {
+  max-width: 380px;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  transform: rotate(-2deg);
+  transition: transform 240ms ease;
+}
+.cover-img:hover { transform: rotate(0deg) scale(1.02); }
+
+.hero-cta {
+  display: inline-block;
+  background: var(--accent);
+  color: #1a0f1f;
+  font-weight: 700;
+  font-size: 18px;
+  padding: 16px 28px;
+  border-radius: var(--radius-pill);
+  border: none;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+  text-decoration: none;
+}
+.hero-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+.book-section, .inside-section, .faq {
+  padding: var(--section-pad-mobile) 24px;
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 768px) {
+  .book-section, .inside-section, .faq {
+    padding: var(--section-pad-desktop) 24px;
+  }
+}
+
+.content-wrap { max-width: var(--content-max); margin: 0 auto; }
+
+.feature-grid {
+  display: grid; gap: 24px;
+  grid-template-columns: 1fr;
+  margin-top: 32px;
+}
+@media (min-width: 720px) {
+  .feature-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.feature {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 32px 24px;
+  text-align: center;
+}
+.feature-num {
+  font-family: var(--font-display);
+  font-size: 56px;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.feature p { color: var(--text-muted); margin: 0; }
+
+.section-lede {
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 640px;
+}
+
+.buy-section {
+  padding: var(--section-pad-mobile) 24px;
+  background: linear-gradient(180deg, transparent, rgba(243,154,60,0.06));
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 768px) { .buy-section { padding: var(--section-pad-desktop) 24px; } }
+
+.buy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 40px 32px;
+  display: grid;
+  gap: 32px;
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+@media (min-width: 720px) {
+  .buy-card { grid-template-columns: 240px 1fr; padding: 48px; }
+}
+.buy-cover {
+  width: 240px; height: auto; border-radius: 8px; justify-self: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.buy-copy h2 { margin-top: 0; }
+.buy-desc { color: var(--text-muted); margin-bottom: 8px; }
+.buy-price {
+  font-family: var(--font-display);
+  font-size: 44px;
+  color: var(--accent);
+  margin: 4px 0 24px;
+  line-height: 1;
+}
+.buy-cta {
+  display: inline-block;
+  background: var(--accent);
+  color: #1a0f1f;
+  font-weight: 700;
+  font-size: 18px;
+  padding: 16px 32px;
+  border-radius: var(--radius-pill);
+  transition: background 160ms ease, transform 160ms ease;
+}
+.buy-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.buy-finepoint {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.faq h2 { margin-bottom: 24px; }
+.faq details {
+  border-top: 1px solid var(--border);
+  padding: 20px 0;
+}
+.faq details:last-child { border-bottom: 1px solid var(--border); }
+.faq summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 18px;
+  list-style: none;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: '+'; float: right; color: var(--accent); font-size: 22px; line-height: 1;
+}
+.faq details[open] summary::after { content: '−'; }
+.faq p { color: var(--text-muted); margin: 12px 0 0; }
+
+/* Thanks page */
+.thanks-main { padding: 80px 24px; }
+.thanks-card {
+  max-width: 560px; text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 48px 32px;
+}
+.thanks-cover {
+  width: 200px; height: auto; margin: 0 auto 24px;
+  border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.thanks-lede { font-size: 18px; color: var(--text-muted); margin-bottom: 24px; }
+.thanks-cta { margin: 16px auto 24px; }
+.thanks-fine { font-size: 14px; color: var(--text-muted); }
+
+.site-footer {
+  padding: 40px 24px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+.footer-links { margin-top: 8px; }
