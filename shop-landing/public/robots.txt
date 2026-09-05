@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://meetora-app.pplx.app/sitemap.xml

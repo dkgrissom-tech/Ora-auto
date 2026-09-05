@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank you — download Pip the Pumpkin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/shop.css">
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png">
+</head>
+<body class="shop thanks-page">
+
+<main class="thanks-main">
+  <div class="content-wrap thanks-card">
+    <img src="/assets/img/pip-cover.png" alt="Pip the Pumpkin cover"
+         class="thanks-cover" width="200" height="267">
+    <h1>Thank you.</h1>
+    <p class="thanks-lede" id="thanksLede">
+      Verifying your payment…
+    </p>
+
+    <a href="#" class="hero-cta thanks-cta" id="downloadBtn"
+       style="display:none; text-decoration:none;">
+      Download your PDF
+    </a>
+
+    <p class="thanks-fine" id="thanksFine">
+      A backup download link is also on its way to your email. If it doesn't
+      arrive in a few minutes, check spam or write
+      <a href="mailto:hello@grissompress.com">hello@grissompress.com</a>.
+    </p>
+
+    <p class="thanks-note" id="thanksErr" style="display:none; color:var(--danger);">
+      We couldn't verify your payment. If you were charged, forward the Stripe
+      receipt to <a href="mailto:hello@grissompress.com">hello@grissompress.com</a>
+      and I'll send you the PDF within a few hours.
+    </p>
+  </div>
+</main>
+
+<script>
+  (async function () {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    const lede = document.getElementById('thanksLede');
+    const btn = document.getElementById('downloadBtn');
+    const err = document.getElementById('thanksErr');
+
+    if (!sessionId) {
+      lede.textContent = 'Missing your session ID.';
+      err.style.display = 'block';
+      return;
+    }
+
+    try {
+      const res = await fetch('/verify?session_id=' + encodeURIComponent(sessionId));
+      if (!res.ok) throw new Error('verify failed');
+      const data = await res.json();
+      if (!data.ok || !data.download_url) throw new Error('no download url');
+
+      lede.textContent = 'Your PDF is ready. Tap the button to download.';
+      btn.href = data.download_url;
+      btn.style.display = 'inline-block';
+    } catch (e) {
+      lede.textContent = "We couldn't verify your payment automatically.";
+      err.style.display = 'block';
+    }
+  })();
+</script>
+
+</body>
+</html>
