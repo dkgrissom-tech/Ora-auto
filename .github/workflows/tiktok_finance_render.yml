@@ -11,47 +11,28 @@ on:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    services:
-      short-video-maker:
-        image: gyoridavid/short-video-maker:latest-tiny
-        ports:
-          - 3123:3123
-        env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          LOG_LEVEL: info
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install ffmpeg + fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu imagemagick
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
-      - name: Install deps
-        run: pip install pyyaml
-
-      - name: Probe API root
-        run: |
-          for i in $(seq 1 60); do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:3123/api/music-tags || echo curl_err)
-            echo "probe $i: $code"
-            if [ "$code" = "200" ]; then break; fi
-            sleep 5
-          done
-
-      - name: Show short-video-maker container logs (first 200 lines)
-        if: always()
-        run: |
-          docker ps -a
-          CID=$(docker ps -a --filter 'ancestor=gyoridavid/short-video-maker:latest-tiny' --format '{{.ID}}' | head -1)
-          echo "container: $CID"
-          if [ -n "$CID" ]; then docker logs "$CID" 2>&1 | head -200; fi
+      - name: Install Python deps
+        run: pip install -r scripts/tiktok_finance/requirements.txt
 
       - name: Render batch
         env:
-          SVM_API: http://localhost:3123
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           RENDER_LIMIT: ${{ inputs.limit }}
         run: python scripts/tiktok_finance/render_batch.py
 

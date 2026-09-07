@@ -1,150 +1,239 @@
 #!/usr/bin/env python3
-"""Bulk render TikTok finance shorts via short-video-maker (running in Docker sidecar).
+"""Bulk render TikTok finance shorts — pure Python, no Docker.
 
-Reads scripts.yaml, hits the local short-video-maker API for each script,
-polls until each render completes, downloads the MP4 to out/, and writes
-captions.md with copy-paste captions + hashtags for TikTok Studio upload.
+Pipeline per script:
+1. edge-tts: neural male voice → MP3 per scene
+2. Pexels API: portrait video search per scene → MP4 clip
+3. moviepy: trim B-roll to voice length, add centered caption, concat scenes
+4. Output 9:16 1080x1920 MP4
+
+Reads scripts.yaml, writes out/*.mp4 + captions.md.
 """
 from __future__ import annotations
 
-import os
-import sys
-import time
+import asyncio
 import json
+import os
 import pathlib
+import random
+import re
+import shutil
 import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
 import urllib.request
-import urllib.error
 
+import edge_tts
 import yaml
+from moviepy import (
+    AudioFileClip,
+    ColorClip,
+    CompositeVideoClip,
+    TextClip,
+    VideoFileClip,
+    concatenate_videoclips,
+)
+from moviepy.video.fx.Loop import Loop
 
 HERE = pathlib.Path(__file__).parent
 OUT = HERE / "out"
 OUT.mkdir(exist_ok=True)
+CACHE = HERE / ".cache"
+CACHE.mkdir(exist_ok=True)
 
-API = os.environ.get("SVM_API", "http://localhost:3123")
-SCRIPTS_PATH = HERE / "scripts.yaml"
-POLL_INTERVAL = 5
-TIMEOUT = 900  # 15 min per video
+PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "")
+if not PEXELS_KEY:
+    print("FATAL: PEXELS_API_KEY not set", file=sys.stderr)
+    sys.exit(1)
+
+# Confident male US voice — Edge-TTS neural
+VOICE = "en-US-GuyNeural"
+TARGET_W, TARGET_H = 1080, 1920
+FONT = "DejaVu-Sans-Bold"  # available on ubuntu runners
 
 
-def post_json(url: str, body: dict) -> dict:
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+def pexels_search_video(query: str, per_page: int = 10) -> list[dict]:
+    """Search Pexels for portrait videos matching query."""
+    url = (
+        "https://api.pexels.com/videos/search?"
+        f"query={urllib.parse.quote(query)}&per_page={per_page}&orientation=portrait"
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.loads(r.read())
+    req = urllib.request.Request(url, headers={"Authorization": PEXELS_KEY})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read()).get("videos", [])
 
 
-def get_status(video_id: str) -> str:
-    with urllib.request.urlopen(f"{API}/api/short-video/{video_id}/status", timeout=30) as r:
-        return json.loads(r.read()).get("status", "unknown")
-
-
-def download_video(video_id: str, out_path: pathlib.Path) -> None:
-    url = f"{API}/api/short-video/{video_id}"
-    with urllib.request.urlopen(url, timeout=120) as r, open(out_path, "wb") as f:
-        while chunk := r.read(64 * 1024):
-            f.write(chunk)
-
-
-def render_one(script: dict) -> pathlib.Path | None:
-    sid = script["id"]
-    scenes_payload = [
-        {"text": s["text"], "searchTerms": s["search_terms"]}
-        for s in script["scenes"]
-    ]
-    body = {
-        "scenes": scenes_payload,
-        "config": {
-            "paddingBack": 1500,
-            "music": "chill",
-            "captionPosition": "center",
-            "captionBackgroundColor": "yellow",
-            "voice": "am_michael",  # confident male
-            "orientation": "portrait",
-            "musicVolume": "low",
-        },
-    }
-    print(f"→ submitting {sid}...", flush=True)
-    try:
-        resp = post_json(f"{API}/api/short-video", body)
-    except urllib.error.HTTPError as e:
-        print(f"  ✗ submit failed: {e.code} {e.reason}\n  {e.read().decode()[:400]}", flush=True)
-        return None
-
-    video_id = resp.get("videoId")
-    if not video_id:
-        print(f"  ✗ no videoId in response: {resp}", flush=True)
-        return None
-    print(f"  videoId: {video_id}", flush=True)
-
-    # Poll for completion
-    start = time.time()
-    while time.time() - start < TIMEOUT:
-        try:
-            status = get_status(video_id)
-        except Exception as e:
-            print(f"  ⚠ status poll error: {e}", flush=True)
-            time.sleep(POLL_INTERVAL)
+def pick_pexels_clip(search_terms: list[str]) -> str | None:
+    """Pick a random matching Pexels video and download it. Returns local path."""
+    for term in search_terms:
+        vids = pexels_search_video(term, per_page=15)
+        if not vids:
             continue
-        if status == "ready":
-            break
-        if status == "failed":
-            print(f"  ✗ render failed for {sid}", flush=True)
-            return None
-        print(f"  ...status={status} ({int(time.time()-start)}s)", flush=True)
-        time.sleep(POLL_INTERVAL)
+        random.shuffle(vids)
+        for v in vids:
+            # Pick a video file at HD or SD, prefer portrait
+            files = sorted(
+                [f for f in v.get("video_files", []) if f.get("width") and f.get("height")],
+                key=lambda f: abs(f["height"] / max(f["width"], 1) - TARGET_H / TARGET_W),
+            )
+            if not files:
+                continue
+            vf = files[0]
+            local = CACHE / f"pexels_{v['id']}_{vf['id']}.mp4"
+            if not local.exists():
+                print(f"    ↓ Pexels {v['id']} ({vf['width']}x{vf['height']})", flush=True)
+                try:
+                    urllib.request.urlretrieve(vf["link"], local)
+                except Exception as e:
+                    print(f"    ✗ download failed: {e}", flush=True)
+                    continue
+            if local.stat().st_size < 10_000:
+                local.unlink(missing_ok=True)
+                continue
+            return str(local)
+    # Fallback: generic
+    for term in ["business", "finance", "money", "office"]:
+        vids = pexels_search_video(term, per_page=5)
+        if vids:
+            v = vids[0]
+            files = v.get("video_files", [])
+            if files:
+                vf = files[0]
+                local = CACHE / f"pexels_fb_{v['id']}.mp4"
+                if not local.exists():
+                    urllib.request.urlretrieve(vf["link"], local)
+                return str(local)
+    return None
+
+
+async def tts_scene(text: str, out_path: pathlib.Path) -> None:
+    """Generate MP3 for one scene via Edge TTS."""
+    communicate = edge_tts.Communicate(text, VOICE, rate="+8%")
+    await communicate.save(str(out_path))
+
+
+def build_scene_clip(text: str, audio_path: pathlib.Path, video_path: str) -> VideoFileClip:
+    """Build one scene: video B-roll trimmed to audio length + centered caption."""
+    audio = AudioFileClip(str(audio_path))
+    dur = audio.duration
+
+    video = VideoFileClip(video_path).without_audio()
+
+    # Loop or trim video to match audio duration
+    if video.duration < dur:
+        loops_needed = int(dur / video.duration) + 1
+        video = concatenate_videoclips([video] * loops_needed)
+    video = video.subclipped(0, dur)
+
+    # Resize/crop to 1080x1920 (portrait). Fit height, crop width if wide.
+    vw, vh = video.size
+    target_ratio = TARGET_W / TARGET_H
+    cur_ratio = vw / vh
+    if cur_ratio > target_ratio:
+        # too wide — scale by height then crop width
+        new_h = TARGET_H
+        new_w = int(vw * (TARGET_H / vh))
+        video = video.resized((new_w, new_h))
+        x_center = new_w // 2
+        video = video.cropped(x_center=x_center, y_center=new_h // 2, width=TARGET_W, height=TARGET_H)
     else:
-        print(f"  ✗ timeout for {sid}", flush=True)
-        return None
+        # too tall — scale by width then crop height
+        new_w = TARGET_W
+        new_h = int(vh * (TARGET_W / vw))
+        video = video.resized((new_w, new_h))
+        video = video.cropped(x_center=new_w // 2, y_center=new_h // 2, width=TARGET_W, height=TARGET_H)
 
-    out_path = OUT / f"{sid}.mp4"
-    download_video(video_id, out_path)
-    print(f"  ✓ saved {out_path.name} ({out_path.stat().st_size // 1024} KB)", flush=True)
-    return out_path
+    # Caption: yellow bold text, centered, with dark background box
+    caption = (
+        TextClip(
+            text=text,
+            font_size=68,
+            color="yellow",
+            font="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            stroke_color="black",
+            stroke_width=4,
+            method="caption",
+            size=(int(TARGET_W * 0.88), None),
+            text_align="center",
+        )
+        .with_duration(dur)
+        .with_position(("center", "center"))
+    )
+
+    composite = CompositeVideoClip([video, caption]).with_audio(audio)
+    return composite
 
 
-def wait_for_api(max_seconds: int = 600) -> bool:
-    """Wait for short-video-maker to be reachable. Uses /api/music-tags as liveness probe."""
-    print(f"waiting for {API} ...", flush=True)
-    start = time.time()
-    last_err = ""
-    while time.time() - start < max_seconds:
-        try:
-            with urllib.request.urlopen(f"{API}/api/music-tags", timeout=5) as r:
-                if r.status == 200:
-                    print(f"  ✓ API ready in {int(time.time()-start)}s", flush=True)
-                    return True
-        except Exception as e:
-            last_err = str(e)[:120]
-        elapsed = int(time.time() - start)
-        if elapsed % 30 < 5:
-            print(f"  ...still waiting ({elapsed}s) — last: {last_err}", flush=True)
-        time.sleep(5)
-    print(f"  ✗ API never came up (last error: {last_err})", flush=True)
-    return False
+def render_script(script: dict) -> pathlib.Path | None:
+    sid = script["id"]
+    print(f"\n=== {sid}: {script['title']} ===", flush=True)
+    tmpdir = pathlib.Path(tempfile.mkdtemp(prefix=f"scene_{sid}_"))
+    try:
+        scene_clips = []
+        for i, scene in enumerate(script["scenes"]):
+            text = scene["text"]
+            print(f"  scene {i+1}/{len(script['scenes'])}: {text[:60]}...", flush=True)
+
+            # 1. TTS
+            audio_path = tmpdir / f"scene_{i:02d}.mp3"
+            try:
+                asyncio.run(tts_scene(text, audio_path))
+            except Exception as e:
+                print(f"    ✗ tts failed: {e}", flush=True)
+                return None
+
+            # 2. B-roll
+            video_path = pick_pexels_clip(scene["search_terms"])
+            if not video_path:
+                print(f"    ✗ no Pexels clip found", flush=True)
+                return None
+
+            # 3. Composite scene
+            try:
+                clip = build_scene_clip(text, audio_path, video_path)
+                scene_clips.append(clip)
+            except Exception as e:
+                print(f"    ✗ compose failed: {e}", flush=True)
+                return None
+
+        # Concatenate all scenes
+        print(f"  concatenating {len(scene_clips)} scenes...", flush=True)
+        final = concatenate_videoclips(scene_clips, method="compose")
+
+        out_path = OUT / f"{sid}.mp4"
+        final.write_videofile(
+            str(out_path),
+            fps=30,
+            codec="libx264",
+            audio_codec="aac",
+            preset="fast",
+            threads=2,
+            logger=None,
+        )
+        print(f"  ✓ wrote {out_path.name} ({out_path.stat().st_size // 1024} KB)", flush=True)
+        return out_path
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def main() -> int:
-    if not wait_for_api():
-        return 1
-
-    scripts = yaml.safe_load(SCRIPTS_PATH.read_text())
+    scripts_path = HERE / "scripts.yaml"
+    scripts = yaml.safe_load(scripts_path.read_text())
     limit = int(os.environ.get("RENDER_LIMIT", "0") or 0)
     if limit > 0:
         scripts = scripts[:limit]
     print(f"loaded {len(scripts)} scripts (limit={limit})", flush=True)
 
-    captions_lines = ["# TikTok Captions — @toolstack-y4g\n"]
-    captions_lines.append("Upload each MP4 below to TikTok Studio, then paste the caption + hashtags.\n")
+    captions_lines = [
+        "# TikTok Captions — @toolstack-y4g\n\n",
+        "Upload each MP4 below to TikTok Studio, then paste the caption + hashtags.\n",
+    ]
 
     rendered = 0
     for script in scripts:
-        result = render_one(script)
+        result = render_script(script)
         captions_lines.append(f"\n## {script['id']} — {script['title']}\n")
         if result:
             captions_lines.append(f"File: `{result.name}`\n")
