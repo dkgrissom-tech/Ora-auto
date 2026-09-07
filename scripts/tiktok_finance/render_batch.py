@@ -108,20 +108,24 @@ def render_one(script: dict) -> pathlib.Path | None:
     return out_path
 
 
-def wait_for_api(max_seconds: int = 300) -> bool:
-    """Wait for short-video-maker to be reachable."""
+def wait_for_api(max_seconds: int = 600) -> bool:
+    """Wait for short-video-maker to be reachable. Uses /api/music-tags as liveness probe."""
     print(f"waiting for {API} ...", flush=True)
     start = time.time()
+    last_err = ""
     while time.time() - start < max_seconds:
         try:
-            with urllib.request.urlopen(f"{API}/health", timeout=5) as r:
+            with urllib.request.urlopen(f"{API}/api/music-tags", timeout=5) as r:
                 if r.status == 200:
                     print(f"  ✓ API ready in {int(time.time()-start)}s", flush=True)
                     return True
-        except Exception:
-            pass
+        except Exception as e:
+            last_err = str(e)[:120]
+        elapsed = int(time.time() - start)
+        if elapsed % 30 < 5:
+            print(f"  ...still waiting ({elapsed}s) — last: {last_err}", flush=True)
         time.sleep(5)
-    print(f"  ✗ API never came up", flush=True)
+    print(f"  ✗ API never came up (last error: {last_err})", flush=True)
     return False
 
 
@@ -130,7 +134,10 @@ def main() -> int:
         return 1
 
     scripts = yaml.safe_load(SCRIPTS_PATH.read_text())
-    print(f"loaded {len(scripts)} scripts", flush=True)
+    limit = int(os.environ.get("RENDER_LIMIT", "0") or 0)
+    if limit > 0:
+        scripts = scripts[:limit]
+    print(f"loaded {len(scripts)} scripts (limit={limit})", flush=True)
 
     captions_lines = ["# TikTok Captions — @toolstack-y4g\n"]
     captions_lines.append("Upload each MP4 below to TikTok Studio, then paste the caption + hashtags.\n")

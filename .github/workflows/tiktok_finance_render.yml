@@ -3,9 +3,9 @@ name: TikTok Finance — Bulk Render
 on:
   workflow_dispatch:
     inputs:
-      scripts_file:
-        description: "Path to scripts YAML (default: scripts/tiktok_finance/scripts.yaml)"
-        default: "scripts/tiktok_finance/scripts.yaml"
+      limit:
+        description: "How many scripts to render (0 = all)"
+        default: "0"
         required: false
 
 jobs:
@@ -32,9 +32,27 @@ jobs:
       - name: Install deps
         run: pip install pyyaml
 
+      - name: Probe API root
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" http://localhost:3123/api/music-tags || echo curl_err)
+            echo "probe $i: $code"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 5
+          done
+
+      - name: Show short-video-maker container logs (first 200 lines)
+        if: always()
+        run: |
+          docker ps -a
+          CID=$(docker ps -a --filter 'ancestor=gyoridavid/short-video-maker:latest-tiny' --format '{{.ID}}' | head -1)
+          echo "container: $CID"
+          if [ -n "$CID" ]; then docker logs "$CID" 2>&1 | head -200; fi
+
       - name: Render batch
         env:
           SVM_API: http://localhost:3123
+          RENDER_LIMIT: ${{ inputs.limit }}
         run: python scripts/tiktok_finance/render_batch.py
 
       - name: Upload MP4s + captions
