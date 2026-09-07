@@ -8,15 +8,17 @@ policy both the ingester and the scheduler need belongs here.
 """
 import os
 
-# TikTok is enabled per brand because each brand needs its own connected account
-# and access token. Ora posts as @toolstack-y4g. Grissom Press and Family Book
-# have no TikTok account, so their posts are dropped at ingest rather than being
-# queued and skipped daily.
+# TikTok is enabled per brand because each brand needs its own connected account,
+# either through a native Content Posting token OR through Buffer's TikTok
+# channel slot. Grissom posts to @amgriss1 via Buffer (no native token needed);
+# Ora posts as @toolstack-y4g. Family Book has no TikTok account yet, so its
+# posts are dropped at ingest rather than queued and skipped.
 #
-# To enable another brand: create the account, add {BRAND}_TIKTOK_ACCESS_TOKEN,
-# and set TIKTOK_ALLOWED_BRANDS here or as an env var - one place, both scripts.
+# To enable another brand: connect the account in Buffer (or add
+# {BRAND}_TIKTOK_ACCESS_TOKEN for native), and set TIKTOK_ALLOWED_BRANDS here
+# or as an env var - one place, both scripts.
 TIKTOK_ALLOWED_BRANDS = {
     b.strip().lower()
-    for b in os.environ.get("TIKTOK_ALLOWED_BRANDS", "ora").split(",")
+    for b in os.environ.get("TIKTOK_ALLOWED_BRANDS", "ora,grissom").split(",")
     if b.strip()
 }

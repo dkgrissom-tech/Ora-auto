@@ -693,7 +693,7 @@ BUFFER_API = "https://api.buffer.com"
 # channels are ever reconnected (reconnecting changes the ID).
 BUFFER_CHANNELS = {
     "instagram": os.environ.get("BUFFER_CHANNEL_INSTAGRAM", "6a4aa7984048344628728874"),
-    "tiktok":    os.environ.get("BUFFER_CHANNEL_TIKTOK",    "6a236b76c687a22dd4667858"),
+    "tiktok":    os.environ.get("BUFFER_CHANNEL_TIKTOK",    "6a9f1566cd8b9c702c2549f7"),  # @amgriss1
     "youtube":   os.environ.get("BUFFER_CHANNEL_YOUTUBE",   "6a4aa6ec40483446287286c9"),
     # No hardcoded default: Pinterest was not connected in Buffer when the
     # others were resolved. Left blank so resolve_buffer_pinterest() discovers
@@ -990,9 +990,9 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None,
     if not channel:
         log(f"[{brand}] Buffer has no {service} channel configured")
         return None
-    # Neither Instagram nor Pinterest will accept a post with no media.
-    if service in ("instagram", "pinterest") and not image_path:
-        log(f"[{brand}] Buffer/{service} needs an image - not configured")
+    # Neither Instagram, Pinterest nor TikTok will accept a post with no media.
+    if service in ("instagram", "pinterest", "tiktok") and not image_path:
+        log(f"[{brand}] Buffer/{service} needs an image or video - not configured")
         return None
 
     assets = []
@@ -1433,7 +1433,19 @@ def deliver(brand, post, platform):
     if platform == "tiktok":
         if brand not in TIKTOK_ALLOWED_BRANDS:
             return "skip", "TikTok disabled for this brand by policy"
+        # Native TikTok API requires a Developer app + Content Posting scope
+        # per brand. When {BRAND}_TIKTOK_ACCESS_TOKEN is absent we fall back
+        # to Buffer, which posts to the account connected in Buffer's channel
+        # slot (currently @amgriss1 for Grissom). Buffer TikTok accepts image
+        # or video assets; native TikTok requires video.
+        if not secret(brand, "TIKTOK_ACCESS_TOKEN"):
+            return outcome(post_buffer(brand, body, post.get("video") or post.get("image"), "tiktok"), "via Buffer")
         return outcome(post_tiktok(brand, body, post.get("video")))
+
+    if platform == "buffer_tiktok":
+        # Explicitly requested Buffer route for TikTok (bypasses native API
+        # even if a token happens to be present).
+        return outcome(post_buffer(brand, body, post.get("video") or post.get("image"), "tiktok"), "via Buffer")
 
     return "skip", f"unknown platform '{platform}'"
 
