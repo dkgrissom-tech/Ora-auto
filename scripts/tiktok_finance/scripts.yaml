@@ -1,0 +1,241 @@
+# @toolstack-y4g — First 10 Viral-Ready Finance Scripts
+# Each script becomes one 9:16 MP4 with AI voiceover + auto-captions + Pexels B-roll
+# Scenes split by sentence; search_terms drive the B-roll for each scene
+
+- id: "01_1000_truth"
+  title: "The $1,000 Truth"
+  caption: "The $1,000 rule most people ignore 💰"
+  hashtags: "#personalfinance #moneysavingtips #highyieldsavings #fintok #savingsgoal #financialfreedom #moneytok"
+  scenes:
+    - text: "Did you know 63% of Americans have less than $1,000 in savings?"
+      search_terms: ["empty wallet", "worried person"]
+    - text: "Not $10,000. One thousand."
+      search_terms: ["one dollar bill", "coin jar"]
+    - text: "Here's the exact system to fix that in 90 days."
+      search_terms: ["calendar", "planning notebook"]
+    - text: "Open a high-yield savings account at Ally or Marcus."
+      search_terms: ["laptop banking", "online banking"]
+    - text: "They pay around 4% right now, versus 0.01% at Chase."
+      search_terms: ["interest rate chart", "bank building"]
+    - text: "Set up an automatic transfer of $50 every Friday."
+      search_terms: ["phone banking", "automatic transfer"]
+    - text: "In 90 days you'll have $650 plus interest, earning real money."
+      search_terms: ["growing money", "stack of cash"]
+    - text: "Don't wait until you have extra. There is no extra. You build it by force."
+      search_terms: ["determined person", "building wealth"]
+    - text: "Follow for more."
+      search_terms: ["follow arrow", "money tips"]
+
+- id: "02_credit_card_reset"
+  title: "The Credit Card Reset"
+  caption: "One phone call. Four thousand dollars. 📞"
+  hashtags: "#creditcarddebt #debtfree #personalfinance #moneytips #fintok #debtpayoff #financialliteracy"
+  scenes:
+    - text: "If you have credit card debt, stop making minimum payments today."
+      search_terms: ["credit cards", "credit card debt"]
+    - text: "Here's what the banks don't want you to know."
+      search_terms: ["bank building", "bank vault"]
+    - text: "On $5,000 of debt at 24% APR, minimum payments take 22 years."
+      search_terms: ["calculator", "financial calculator"]
+    - text: "And cost $8,400 in interest alone."
+      search_terms: ["stack of bills", "money burning"]
+    - text: "Call your bank and say the exact words: I'd like a hardship rate reduction."
+      search_terms: ["phone call", "person on phone"]
+    - text: "They legally have to consider it."
+      search_terms: ["law books", "legal documents"]
+    - text: "About 60% of people who ask get their rate cut in half."
+      search_terms: ["percentage chart", "graph rising"]
+    - text: "That's $4,000 saved with one 10-minute phone call."
+      search_terms: ["clock ticking", "money saved"]
+    - text: "Do it Monday morning. Follow for more."
+      search_terms: ["Monday morning", "coffee laptop"]
+
+- id: "03_24yo_millionaire_math"
+  title: "The 24-Year-Old Millionaire Math"
+  caption: "The $5,000 move that becomes $1.4M 📈"
+  hashtags: "#rothira #investingforbeginners #personalfinance #wealthbuilding #fintok #compoundinterest #fidelity"
+  scenes:
+    - text: "Here's exactly what to do with your first $5,000 if you're under 30."
+      search_terms: ["young professional", "cash stack"]
+    - text: "Do not buy stocks. Do not day trade."
+      search_terms: ["stock chart", "trader screen"]
+    - text: "Open a Roth IRA at Fidelity — takes 8 minutes."
+      search_terms: ["laptop signup", "online form"]
+    - text: "Put the full $5,000 into one index fund called FZROX. Zero fees."
+      search_terms: ["investment portfolio", "index fund"]
+    - text: "Never touch it."
+      search_terms: ["locked safe", "vault door"]
+    - text: "If it averages the historical 10% return, that $5,000 becomes $217,000 by age 65."
+      search_terms: ["retirement", "wealth growth"]
+    - text: "Add $200 a month, and you retire with $1.4 million."
+      search_terms: ["mansion", "luxury lifestyle"]
+    - text: "This is the math nobody teaches you in school. Follow for more."
+      search_terms: ["chalkboard math", "graduation"]
+
+- id: "04_bill_nobody_cancels"
+  title: "The Bill Nobody Cancels"
+  caption: "$273/month you didn't know you were losing 💸"
+  hashtags: "#budgeting #savemoney #personalfinance #moneytips #fintok #frugalliving #rocketmoney"
+  scenes:
+    - text: "The average American wastes $273 a month on subscriptions they forgot they had."
+      search_terms: ["credit card statement", "monthly bills"]
+    - text: "Open your Chase or Apple Card statement right now."
+      search_terms: ["phone banking app", "credit card statement"]
+    - text: "Search for these five: gym memberships you don't use."
+      search_terms: ["empty gym", "gym equipment"]
+    - text: "Streaming services stacked on top of each other."
+      search_terms: ["streaming apps", "TV remote"]
+    - text: "Amazon Prime you already have through work."
+      search_terms: ["amazon delivery", "package box"]
+    - text: "Cloud storage that renewed itself. Free trials that turned into charges."
+      search_terms: ["cloud storage", "phone notification"]
+    - text: "Use an app called Rocket Money — it finds and cancels them for you, free."
+      search_terms: ["phone app", "smartphone screen"]
+    - text: "One user recovered $1,800 in six minutes. That's a plane ticket."
+      search_terms: ["airplane", "vacation"]
+    - text: "Do it tonight. Follow for more."
+      search_terms: ["evening laptop", "phone at night"]
+
+- id: "05_emergency_fund_lie"
+  title: "The Emergency Fund Lie"
+  caption: "The emergency fund rule that's costing you $15K 🏦"
+  hashtags: "#emergencyfund #investing #personalfinance #wealthbuilding #fintok #sp500 #financialplanning"
+  scenes:
+    - text: "Everyone tells you to build a six-month emergency fund before you invest."
+      search_terms: ["savings jar", "piggy bank"]
+    - text: "That advice is wrong for anyone under 35."
+      search_terms: ["young professional", "questioning face"]
+    - text: "Here's why."
+      search_terms: ["chalkboard", "explaining"]
+    - text: "$10,000 in a savings account for 10 years gives you $10,400."
+      search_terms: ["stack of cash", "slow growth"]
+    - text: "That same $10,000 in an S&P 500 index fund? $25,900."
+      search_terms: ["stock chart rising", "investment growth"]
+    - text: "The correct move: save one month of expenses in cash."
+      search_terms: ["envelope cash", "one month calendar"]
+    - text: "Then invest everything above that."
+      search_terms: ["investment portfolio", "wealth growth"]
+    - text: "You can always sell stocks in an emergency."
+      search_terms: ["laptop trading", "sell button"]
+    - text: "You can't unstart compound interest. Follow for more."
+      search_terms: ["compound growth", "time clock"]
+
+- id: "06_amazon_refund"
+  title: "The Amazon Refund Nobody Uses"
+  caption: "Amazon owes you money. Here's how to claim it. 📦"
+  hashtags: "#amazontips #savemoney #moneytips #personalfinance #lifehacks #fintok #amazonrefund"
+  scenes:
+    - text: "Amazon owes you money right now and you don't know it."
+      search_terms: ["amazon package", "delivery box"]
+    - text: "Here's the trick."
+      search_terms: ["laptop typing", "phone screen"]
+    - text: "Go to your Amazon account, click Returns and Orders."
+      search_terms: ["online shopping", "amazon app"]
+    - text: "Filter by the last 3 months."
+      search_terms: ["calendar", "monthly planner"]
+    - text: "For any package that arrived late, even by one day, click Contact Seller."
+      search_terms: ["late delivery", "package delivery"]
+    - text: "Use this phrase: package arrived after guaranteed date, requesting refund."
+      search_terms: ["typing message", "customer service"]
+    - text: "Amazon issues the refund automatically about 80% of the time."
+      search_terms: ["money refund", "cash back"]
+    - text: "Average person gets $40 to $80 back per month."
+      search_terms: ["dollar bills", "money in hand"]
+    - text: "Do it right now. Follow for more."
+      search_terms: ["phone typing", "urgent notification"]
+
+- id: "07_salary_negotiation"
+  title: "The Salary Negotiation Nobody Teaches"
+  caption: "The 30-minute conversation worth $20,000 💼"
+  hashtags: "#salarynegotiation #careertips #personalfinance #careergrowth #fintok #jobsearch #moneytok"
+  scenes:
+    - text: "The average raise in America right now is 3.5%."
+      search_terms: ["office worker", "salary paper"]
+    - text: "If you switch jobs, the average pay bump is 14.8%."
+      search_terms: ["job interview", "handshake"]
+    - text: "Staying loyal for 10 years costs you six figures."
+      search_terms: ["office worker sad", "money burning"]
+    - text: "Don't quit. Use the offer."
+      search_terms: ["business meeting", "negotiation"]
+    - text: "Get a written offer from a competitor."
+      search_terms: ["offer letter", "email offer"]
+    - text: "Walk into your manager's office."
+      search_terms: ["office meeting", "boss office"]
+    - text: "Say: I've been offered X to leave. What can we do to keep me?"
+      search_terms: ["professional meeting", "conversation"]
+    - text: "70% of companies counter with a match or better."
+      search_terms: ["contract signing", "money raise"]
+    - text: "You just got a raise in 30 minutes. Follow for more."
+      search_terms: ["celebration", "success"]
+
+- id: "08_car_payment_trap"
+  title: "The Car Payment Trap"
+  caption: "Your car payment is stealing your retirement 🚗"
+  hashtags: "#carpayment #personalfinance #wealthbuilding #frugalliving #fintok #moneytips #debtfree"
+  scenes:
+    - text: "The average new car payment in America is now $742 a month."
+      search_terms: ["new car", "car dealership"]
+    - text: "Invest that instead, and in 7 years you'd have $80,000 in stocks."
+      search_terms: ["stock chart rising", "wealth growth"]
+    - text: "You still need a car."
+      search_terms: ["highway driving", "car keys"]
+    - text: "Buy a $12,000 used Toyota Corolla."
+      search_terms: ["used car lot", "toyota"]
+    - text: "Drive it for a decade."
+      search_terms: ["highway", "long road"]
+    - text: "Put the difference to work."
+      search_terms: ["investment growth", "money working"]
+    - text: "Millionaires drive boring cars."
+      search_terms: ["ordinary sedan", "regular car"]
+    - text: "The person with the $80,000 truck is broke."
+      search_terms: ["luxury truck", "expensive car"]
+    - text: "This is the math nobody wants to hear. Follow for more."
+      search_terms: ["calculator", "financial reality"]
+
+- id: "09_irs_free_money"
+  title: "The Free Money the IRS Owes You"
+  caption: "The IRS owes $1.5B. Some of it is yours. 💵"
+  hashtags: "#taxrefund #irs #personalfinance #freemoney #moneytips #fintok #taxseason"
+  scenes:
+    - text: "The IRS is sitting on $1.5 billion in unclaimed tax refunds right now."
+      search_terms: ["government building", "IRS building"]
+    - text: "If you didn't file a return in 2022 or 2023, some of that is yours."
+      search_terms: ["tax forms", "tax documents"]
+    - text: "Go to IRS.gov."
+      search_terms: ["laptop screen", "government website"]
+    - text: "Click Get Your Refund Status."
+      search_terms: ["clicking mouse", "computer screen"]
+    - text: "Enter your Social Security number."
+      search_terms: ["typing on keyboard", "social security card"]
+    - text: "The average unclaimed refund is $932."
+      search_terms: ["stack of cash", "hundred dollar bills"]
+    - text: "It takes 4 minutes to check."
+      search_terms: ["clock timer", "quick check"]
+    - text: "You have 3 years before the government keeps it forever."
+      search_terms: ["hourglass", "deadline calendar"]
+    - text: "Do it before the deadline. Follow for more."
+      search_terms: ["deadline calendar", "reminder"]
+
+- id: "10_401k_match"
+  title: "The 401k Match Nobody Claims"
+  caption: "The 3-minute change worth $5,000 a year 📊"
+  hashtags: "#401k #retirementplanning #personalfinance #wealthbuilding #fintok #employermatch #financialfreedom"
+  scenes:
+    - text: "30% of Americans with 401k access don't get the full company match."
+      search_terms: ["office building", "corporate workplace"]
+    - text: "That's leaving free money on the table."
+      search_terms: ["money falling", "cash on table"]
+    - text: "Like your employer offering a 3% raise and you saying no thanks."
+      search_terms: ["shaking hands no", "declining offer"]
+    - text: "Here's the fix."
+      search_terms: ["problem solving", "solution"]
+    - text: "Log into your benefits portal today."
+      search_terms: ["laptop login", "computer screen"]
+    - text: "Find 401k contribution rate."
+      search_terms: ["retirement paperwork", "401k documents"]
+    - text: "Set it to whatever your company matches, usually 4 to 6%."
+      search_terms: ["percentage chart", "sliding scale"]
+    - text: "That's a $3,000 to $5,000 annual raise, tax-free."
+      search_terms: ["money growing", "retirement savings"]
+    - text: "No better return exists. Do it during your lunch break. Follow for more."
+      search_terms: ["office lunch", "quick task"]
