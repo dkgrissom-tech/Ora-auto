@@ -98,7 +98,15 @@ def pick_pexels_clip(search_terms: list[str]) -> str | None:
             if not local.exists():
                 print(f"    ↓ Pexels {v['id']} ({vf['width']}x{vf['height']})", flush=True)
                 try:
-                    urllib.request.urlretrieve(vf["link"], local)
+                    dl_req = urllib.request.Request(
+                        vf["link"],
+                        headers={
+                            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+                            "Referer": "https://www.pexels.com/",
+                        },
+                    )
+                    with urllib.request.urlopen(dl_req, timeout=60) as resp:
+                        local.write_bytes(resp.read())
                 except Exception as e:
                     print(f"    ✗ download failed: {e}", flush=True)
                     continue
@@ -116,7 +124,15 @@ def pick_pexels_clip(search_terms: list[str]) -> str | None:
                 vf = files[0]
                 local = CACHE / f"pexels_fb_{v['id']}.mp4"
                 if not local.exists():
-                    urllib.request.urlretrieve(vf["link"], local)
+                    dl_req = urllib.request.Request(
+                        vf["link"],
+                        headers={
+                            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+                            "Referer": "https://www.pexels.com/",
+                        },
+                    )
+                    with urllib.request.urlopen(dl_req, timeout=60) as resp:
+                        local.write_bytes(resp.read())
                 return str(local)
     return None
 
