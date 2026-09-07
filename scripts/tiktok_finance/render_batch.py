@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -43,10 +44,11 @@ OUT.mkdir(exist_ok=True)
 CACHE = HERE / ".cache"
 CACHE.mkdir(exist_ok=True)
 
-PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "")
+PEXELS_KEY = os.environ.get("PEXELS_API_KEY", "").strip()
 if not PEXELS_KEY:
     print("FATAL: PEXELS_API_KEY not set", file=sys.stderr)
     sys.exit(1)
+print(f"pexels key length={len(PEXELS_KEY)} first4={PEXELS_KEY[:4]} last4={PEXELS_KEY[-4:]}", flush=True)
 
 # Confident male US voice — Edge-TTS neural
 VOICE = "en-US-GuyNeural"
@@ -60,9 +62,20 @@ def pexels_search_video(query: str, per_page: int = 10) -> list[dict]:
         "https://api.pexels.com/videos/search?"
         f"query={urllib.parse.quote(query)}&per_page={per_page}&orientation=portrait"
     )
-    req = urllib.request.Request(url, headers={"Authorization": PEXELS_KEY})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read()).get("videos", [])
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": PEXELS_KEY,
+            "User-Agent": "ora-auto-renderer/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read()).get("videos", [])
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")[:300]
+        print(f"    ! Pexels HTTP {e.code} on '{query}': {body}", flush=True)
+        return []
 
 
 def pick_pexels_clip(search_terms: list[str]) -> str | None:
