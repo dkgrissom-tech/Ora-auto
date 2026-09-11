@@ -6266,3 +6266,12 @@
 [2026-09-11T21:21:19.126618Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-09-11T21:21:19.126687Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
 [2026-09-11T21:21:19.126745Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
+[2026-09-11T23:33:26.909379Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-09-11T23:33:26.910182Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-09-11T23:33:26.910297Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-09-11T23:33:26.910371Z] [ingest] [ora] summary: {'drafts': 2, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-09-11T23:33:26.910920Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-09-11T23:33:26.911003Z] [ingest] [grissom] summary: {'drafts': 1, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-09-11T23:33:26.911173Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
+[2026-09-11T23:33:26.911245Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
+[2026-09-11T23:33:26.911306Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
