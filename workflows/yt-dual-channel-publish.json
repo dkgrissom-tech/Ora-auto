@@ -1,0 +1,283 @@
+{
+  "name": "yt-dual-channel-publish",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "15 * * * *" }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron :15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute today's date string for both brands\nconst d = new Date();\nconst yyyy = d.getFullYear();\nconst mm = String(d.getMonth() + 1).padStart(2, '0');\nconst dd = String(d.getDate()).padStart(2, '0');\nconst today = `${yyyy}-${mm}-${dd}`;\nreturn [\n  { json: { brand: 'finance', path: `brands/finance/posts/${today}.md`, today } },\n  { json: { brand: 'military', path: `brands/military/posts/${today}.md`, today } }\n];"
+      },
+      "id": "compute-paths",
+      "name": "Compute Today Paths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "resource": "file",
+        "operation": "get",
+        "owner": "dkgrissom-tech",
+        "repository": "Ora-auto",
+        "filePath": "={{$json.path}}",
+        "additionalParameters": {}
+      },
+      "id": "github-read",
+      "name": "GitHub: Read Today File",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [640, 400],
+      "continueOnFail": true,
+      "credentials": { "githubApi": { "id": "GITHUB_ORA_AUTO", "name": "GITHUB_ORA_AUTO" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse YAML frontmatter + script body from every returned file\nconst results = [];\nfor (const item of $input.all()) {\n  const raw = item.json.content ? Buffer.from(item.json.content, 'base64').toString('utf8') : '';\n  if (!raw) continue;\n  const match = raw.match(/^---\\n([\\s\\S]*?)\\n---\\n([\\s\\S]*)$/);\n  if (!match) continue;\n  const yamlText = match[1];\n  const body = match[2];\n  const meta = {};\n  for (const line of yamlText.split('\\n')) {\n    const m = line.match(/^([a-z_]+):\\s*(.*)$/);\n    if (m) meta[m[1]] = m[2].trim();\n  }\n  // Coerce\n  meta.posted = meta.posted === 'true';\n  meta.made_for_kids = meta.made_for_kids === 'true';\n  meta.category_id = parseInt(meta.category_id) || 27;\n  meta.duration_target_sec = parseInt(meta.duration_target_sec) || 480;\n  if (meta.posted) continue; // skip already posted\n  results.push({ json: { meta, body, sha: item.json.sha, path: item.json.path, brand: meta.youtube_channel } });\n}\nreturn results;"
+      },
+      "id": "parse-frontmatter",
+      "name": "Parse Frontmatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 400]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.brand}}",
+        "rules": {
+          "rules": [
+            { "value2": "finance", "output": 0 },
+            { "value2": "military", "output": 1 }
+          ]
+        },
+        "fallbackOutput": 2
+      },
+      "id": "switch-brand",
+      "name": "Switch by Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1080, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$credentials.claudeApi.apiKey}}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "claude-sonnet-4-5" },
+            { "name": "max_tokens", "value": 4000 },
+            { "name": "messages", "value": "=[{\"role\":\"user\",\"content\":\"Refine this Grissom Capital Notes finance script. Voice: calm analyst, plain English, no hype, 20+ years experience. Return ONLY the final script with [SECTION] markers. Target ${{$json.meta.duration_target_sec}}s.\\n\\n${{$json.body}}\"}]" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "claude-finance",
+      "name": "Claude: Finance Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1300, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{$credentials.claudeApi.apiKey}}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "claude-sonnet-4-5" },
+            { "name": "max_tokens", "value": 5000 },
+            { "name": "messages", "value": "=[{\"role\":\"user\",\"content\":\"Refine this Grissom War Room military history script. Voice: documentary narrator, cinematic, human-focused storytelling. Return ONLY the final script with [ACT] markers. Target ${{$json.meta.duration_target_sec}}s.\\n\\n${{$json.body}}\"}]" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "claude-military",
+      "name": "Claude: Military Script",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1300, 560]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.elevenlabs.io/v1/text-to-speech/{{$json.meta.voice}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "xi-api-key", "value": "={{$credentials.elevenLabs.apiKey}}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "text", "value": "={{$node['Claude: Finance Script'].json.content[0].text || $node['Claude: Military Script'].json.content[0].text}}" },
+            { "name": "model_id", "value": "eleven_multilingual_v2" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "id": "tts",
+      "name": "ElevenLabs TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1520, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3001/render",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "audio_url", "value": "={{$binary.data}}" },
+            { "name": "brand", "value": "={{$json.brand}}" },
+            { "name": "script", "value": "={{$node['Claude: Finance Script'].json.content[0].text || $node['Claude: Military Script'].json.content[0].text}}" },
+            { "name": "duration_sec", "value": "={{$json.meta.duration_target_sec}}" },
+            { "name": "output_path", "value": "=video_drafts/{{$json.brand}}/{{$json.meta.title}}.mp4" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "yt-studio-render",
+      "name": "yt-studio: Render Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1740, 400]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{$json.meta.title}}",
+        "regionCode": "US",
+        "categoryId": "={{$json.meta.category_id}}",
+        "additionalFields": {
+          "description": "={{$json.meta.description}}",
+          "tags": "={{$json.meta.tags}}",
+          "privacyStatus": "private",
+          "publishAt": "={{$json.meta.publish_at}}",
+          "selfDeclaredMadeForKids": false,
+          "notifySubscribers": true
+        },
+        "binaryProperty": "data"
+      },
+      "id": "yt-upload-finance",
+      "name": "YT Upload: Finance",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [1960, 240],
+      "credentials": { "youTubeOAuth2Api": { "id": "FINANCE_YT_OAUTH", "name": "FINANCE_YT_OAUTH" } }
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{$json.meta.title}}",
+        "regionCode": "US",
+        "categoryId": "={{$json.meta.category_id}}",
+        "additionalFields": {
+          "description": "={{$json.meta.description}}",
+          "tags": "={{$json.meta.tags}}",
+          "privacyStatus": "private",
+          "publishAt": "={{$json.meta.publish_at}}",
+          "selfDeclaredMadeForKids": false,
+          "notifySubscribers": true
+        },
+        "binaryProperty": "data"
+      },
+      "id": "yt-upload-military",
+      "name": "YT Upload: Military",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [1960, 560],
+      "credentials": { "youTubeOAuth2Api": { "id": "MILITARY_YT_OAUTH", "name": "MILITARY_YT_OAUTH" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge upload result + rewrite frontmatter with posted=true + video_id\nconst item = $input.first().json;\nconst videoId = item.id;\nconst meta = { ...item.meta, posted: true, video_id: videoId };\n// Rebuild YAML\nconst yamlLines = Object.entries(meta).map(([k,v]) => `${k}: ${typeof v === 'string' && v.includes('\\n') ? '|\\n  ' + v.replace(/\\n/g,'\\n  ') : v}`);\nconst newContent = `---\\n${yamlLines.join('\\n')}\\n---\\n${item.body}`;\nreturn [{ json: { path: item.path, sha: item.sha, content: Buffer.from(newContent).toString('base64'), message: `chore(yt): mark ${meta.youtube_channel} ${videoId} posted` } }];"
+      },
+      "id": "mark-posted",
+      "name": "Build Updated File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 400]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "resource": "file",
+        "operation": "edit",
+        "owner": "dkgrissom-tech",
+        "repository": "Ora-auto",
+        "filePath": "={{$json.path}}",
+        "fileContent": "={{$json.content}}",
+        "commitMessage": "={{$json.message}}"
+      },
+      "id": "github-write",
+      "name": "GitHub: Mark Posted",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [2400, 400],
+      "credentials": { "githubApi": { "id": "GITHUB_ORA_AUTO", "name": "GITHUB_ORA_AUTO" } }
+    }
+  ],
+  "connections": {
+    "Cron :15": { "main": [[{ "node": "Compute Today Paths", "type": "main", "index": 0 }]] },
+    "Compute Today Paths": { "main": [[{ "node": "GitHub: Read Today File", "type": "main", "index": 0 }]] },
+    "GitHub: Read Today File": { "main": [[{ "node": "Parse Frontmatter", "type": "main", "index": 0 }]] },
+    "Parse Frontmatter": { "main": [[{ "node": "Switch by Channel", "type": "main", "index": 0 }]] },
+    "Switch by Channel": {
+      "main": [
+        [{ "node": "Claude: Finance Script", "type": "main", "index": 0 }],
+        [{ "node": "Claude: Military Script", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude: Finance Script": { "main": [[{ "node": "ElevenLabs TTS", "type": "main", "index": 0 }]] },
+    "Claude: Military Script": { "main": [[{ "node": "ElevenLabs TTS", "type": "main", "index": 0 }]] },
+    "ElevenLabs TTS": { "main": [[{ "node": "yt-studio: Render Video", "type": "main", "index": 0 }]] },
+    "yt-studio: Render Video": {
+      "main": [[
+        { "node": "YT Upload: Finance", "type": "main", "index": 0 },
+        { "node": "YT Upload: Military", "type": "main", "index": 0 }
+      ]]
+    },
+    "YT Upload: Finance": { "main": [[{ "node": "Build Updated File", "type": "main", "index": 0 }]] },
+    "YT Upload: Military": { "main": [[{ "node": "Build Updated File", "type": "main", "index": 0 }]] },
+    "Build Updated File": { "main": [[{ "node": "GitHub: Mark Posted", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveExecutionProgress": true, "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all" },
+  "tags": [{ "name": "youtube" }, { "name": "grissom" }, { "name": "dual-channel" }]
+}
