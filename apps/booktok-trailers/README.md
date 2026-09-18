@@ -13,6 +13,7 @@ SaaS: paste an Amazon book URL → get 8 vertical BookTok trailers per week, one
 - AWS S3 bucket + IAM user with `s3:PutObject`, `s3:GetObject`
 - Resend API key
 - ffmpeg installed on the worker host (`brew install ffmpeg` or `apt install ffmpeg`)
+- Supabase Auth → URL Configuration: add `<NEXT_PUBLIC_APP_URL>/auth/callback` as a redirect URL (needed for magic-link sign-in)
 
 ## First run
 

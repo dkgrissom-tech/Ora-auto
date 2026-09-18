@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createServerClient, createServiceClient } from "@/lib/supabase-server";
+import { createServerClient } from "@/lib/supabase-server";
+import { createServiceClient } from "@/lib/supabase-service";
 import { trailerQueue } from "@/lib/queue";
 
 const Body = z.object({
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

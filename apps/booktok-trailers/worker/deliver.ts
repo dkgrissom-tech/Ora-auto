@@ -42,7 +42,7 @@ export async function deliver(args: {
 }
 
 async function getUserEmail(userId: string): Promise<string | null> {
-  const { createServiceClient } = await import("@/lib/supabase-server");
+  const { createServiceClient } = await import("@/lib/supabase-service");
   const service = createServiceClient();
   const { data } = await service.auth.admin.getUserById(userId);
   return data.user?.email ?? null;

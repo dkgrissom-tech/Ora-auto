@@ -1,8 +1,8 @@
-import "dotenv/config";
+import "./load-env";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { env } from "@/lib/env";
-import { createServiceClient } from "@/lib/supabase-server";
+import { createServiceClient } from "@/lib/supabase-service";
 import { scrapeAmazon } from "./scrape";
 import { generateTrailers } from "./generate";
 import { captionAll } from "./caption";

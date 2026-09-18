@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const { plan } = (await req.json()) as { plan: PlanId };
   if (!PLANS[plan]) return NextResponse.json({ error: "bad plan" }, { status: 400 });
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
