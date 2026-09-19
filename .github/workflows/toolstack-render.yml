@@ -1,0 +1,64 @@
+name: Toolstack — Render daily animal short
+
+on:
+  schedule:
+    # 09:00 and 17:00 America/Chicago = 14:00 and 22:00 UTC
+    - cron: "0 14 * * *"
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print plan only, no API call"
+        required: false
+        default: "false"
+
+concurrency:
+  group: toolstack-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+      TOOLSTACK_RENDER_ENABLED: ${{ vars.TOOLSTACK_RENDER_ENABLED || 'true' }}
+      TOOLSTACK_DRY_RUN: ${{ github.event.inputs.dry_run || vars.TOOLSTACK_DRY_RUN || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Guard — kill switch
+        if: env.TOOLSTACK_RENDER_ENABLED != 'true'
+        run: |
+          echo "TOOLSTACK_RENDER_ENABLED=$TOOLSTACK_RENDER_ENABLED — exiting"
+          exit 0
+
+      - name: Guard — secret present
+        if: env.REPLICATE_API_TOKEN == ''
+        run: |
+          echo "REPLICATE_API_TOKEN not set — exiting"
+          exit 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Render next queued short
+        run: python scripts/generate_animal_short.py
+
+      - name: Commit rendered MP4 and updated queue
+        run: |
+          git config user.name  "toolstack-bot"
+          git config user.email "toolstack-bot@users.noreply.github.com"
+          git add brands/toolstack/queue.csv brands/toolstack/assets/*.mp4 brands/toolstack/learnings/render_costs.csv || true
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "toolstack: render next queued short [skip ci]"
+            git push
+          fi
