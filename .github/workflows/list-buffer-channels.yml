@@ -8,65 +8,68 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Query Buffer channels via existing scheduler client
+      - name: Inspect and use Buffer token
         env:
           BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
         run: |
           pip install requests -q
           python3 <<'PY'
-          import os, sys, json, time
-          sys.path.insert(0, "scripts")
+          import os, sys, json, requests
 
-          # Reuse the scheduler's proven buffer_gql (handles Buffer's flaky 401s
-          # with retries) and BUFFER_API constant so we hit the exact endpoint
-          # that already publishes posts every day.
-          from run_scheduler import buffer_gql
-
-          # Try channels-per-org first
-          query = """
-          {
-            account {
-              organizations {
-                id
-                name
-                channels {
-                  id
-                  name
-                  service
-                  serviceUsername
-                }
-              }
-            }
-          }
-          """
-          data, err = buffer_gql(query, {})
-          if err:
-              print(f"::error::{err}")
-              # Fallback: some tokens can't read organizations; try top-level channels
-              print("Trying fallback: top-level channels query")
-              data2, err2 = buffer_gql(
-                  "{ channels { id name service serviceUsername organizationId } }",
-                  {},
-              )
-              if err2:
-                  print(f"::error::fallback failed: {err2}")
-                  sys.exit(1)
-              chans = (data2 or {}).get("channels") or []
-              print(f"::notice::Found {len(chans)} channels (flat)")
-              print(f"{'SERVICE':<12} {'HANDLE':<35} {'NAME':<30} {'ID'}")
-              print("-" * 100)
-              for ch in chans:
-                  svc = (ch.get("service") or "").ljust(12)
-                  handle = (ch.get("serviceUsername") or "").ljust(35)
-                  name = (ch.get("name") or "")[:30].ljust(30)
-                  print(f"{svc} {handle} {name} {ch.get('id')}")
-              sys.exit(0)
-
-          orgs = ((data or {}).get("account") or {}).get("organizations") or []
+          raw = os.environ["BUFFER_ACCESS_TOKEN"]
+          # Analyze token WITHOUT revealing it
+          print(f"::notice::Token length = {len(raw)}")
+          ascii_only = all(ord(c) < 128 for c in raw)
+          print(f"::notice::All ASCII? {ascii_only}")
+          if not ascii_only:
+              non_ascii_positions = [(i, hex(ord(c))) for i, c in enumerate(raw) if ord(c) >= 128]
+              print(f"::warning::Non-ASCII characters at positions: {non_ascii_positions[:10]}")
+          has_leading_ws = raw != raw.lstrip()
+          has_trailing_ws = raw != raw.rstrip()
+          print(f"::notice::Leading whitespace? {has_leading_ws}  Trailing whitespace? {has_trailing_ws}")
+          has_bearer = raw.lower().startswith("bearer ")
+          print(f"::notice::Starts with 'Bearer '? {has_bearer}")
+          has_quotes = raw.startswith('"') or raw.endswith('"') or raw.startswith("'")
+          print(f"::notice::Wrapped in quotes? {has_quotes}")
+          
+          # Sanitize: strip whitespace, drop "Bearer " prefix, strip surrounding quotes
+          token = raw.strip().strip('"').strip("'")
+          if token.lower().startswith("bearer "):
+              token = token[7:].strip()
+          
+          # Re-check the sanitized version
+          print(f"::notice::Sanitized length = {len(token)}")
+          sanitized_ascii = all(ord(c) < 128 for c in token)
+          print(f"::notice::Sanitized ASCII? {sanitized_ascii}")
+          
+          if not sanitized_ascii:
+              print("::error::Token STILL contains non-ASCII characters after cleanup. Please regenerate the token in Buffer and re-copy it — do not use the iOS Notes app.")
+              # Show first 5 chars and last 5 chars only for identification
+              print(f"::notice::Token preview: {token[:3]}...{token[-3:] if len(token) > 6 else ''} (masked)")
+              sys.exit(1)
+          
+          # Now try Buffer with the sanitized token
+          r = requests.post(
+              "https://api.buffer.com",
+              headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+              json={"query": "{ account { organizations { id name channels { id name service serviceUsername } } } }"},
+              timeout=30,
+          )
+          print(f"::notice::HTTP status: {r.status_code}")
+          try:
+              data = r.json()
+          except Exception as e:
+              print(f"::error::Response not JSON: {r.text[:300]}")
+              sys.exit(1)
+          
+          if data.get("errors"):
+              print(f"::error::GraphQL errors: {json.dumps(data['errors'])}")
+              sys.exit(1)
+          
+          orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
           print(f"::notice::Found {len(orgs)} organization(s)")
           for org in orgs:
-              oid = org.get('id', '')
-              print(f"\n### Org: {org.get('name')} (id={oid[:8] if oid else '?'}...)")
+              print(f"\n### Org: {org.get('name')} (id={(org.get('id') or '')[:8]}...)")
               channels = org.get("channels") or []
               print(f"    {len(channels)} channels:")
               print(f"    {'SERVICE':<12} {'HANDLE':<35} {'NAME':<30} {'ID'}")
