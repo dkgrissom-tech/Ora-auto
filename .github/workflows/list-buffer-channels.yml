@@ -1,0 +1,54 @@
+name: List Buffer Channels (diagnostic)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Buffer channels
+        env:
+          BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
+          BUFFER_ORGANIZATION_ID: ${{ secrets.BUFFER_ORGANIZATION_ID }}
+        run: |
+          python3 <<'PY'
+          import os, json, urllib.request
+
+          token = os.environ["BUFFER_ACCESS_TOKEN"]
+          org_id = os.environ.get("BUFFER_ORGANIZATION_ID", "")
+
+          query = """
+          query { channels { id name service serviceId serviceUsername organizationId } }
+          """
+          req = urllib.request.Request(
+              "https://graphql.buffer.com/",
+              data=json.dumps({"query": query}).encode(),
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/json",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as r:
+              data = json.load(r)
+
+          channels = (data.get("data") or {}).get("channels") or []
+          print(f"::notice::Found {len(channels)} channels total")
+          print(f"Organization ID configured: {org_id}")
+          print()
+          print(f"{'SERVICE':<12} {'HANDLE':<30} {'NAME':<30} {'ID'}")
+          print("-" * 100)
+          for ch in channels:
+              svc = (ch.get("service") or "").ljust(12)
+              handle = (ch.get("serviceUsername") or "").ljust(30)
+              name = (ch.get("name") or "")[:30].ljust(30)
+              print(f"{svc} {handle} {name} {ch.get('id')}")
+
+          # Look specifically for toolstack, milo, or animal accounts
+          print()
+          print("=== Filtered for toolstack / animal / cat ===")
+          for ch in channels:
+              blob = json.dumps(ch).lower()
+              if any(k in blob for k in ["toolstack", "milo", "cat", "animal", "y4g"]):
+                  print(json.dumps(ch, indent=2))
+          PY
