@@ -13,40 +13,71 @@ jobs:
           BUFFER_ORGANIZATION_ID: ${{ secrets.BUFFER_ORGANIZATION_ID }}
         run: |
           python3 <<'PY'
-          import os, json, urllib.request
+          import os, json, urllib.request, urllib.error
 
           token = os.environ["BUFFER_ACCESS_TOKEN"]
           org_id = os.environ.get("BUFFER_ORGANIZATION_ID", "")
 
-          query = """
-          query { channels { id name service serviceId serviceUsername organizationId } }
-          """
-          req = urllib.request.Request(
-              "https://graphql.buffer.com/",
-              data=json.dumps({"query": query}).encode(),
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
-          )
-          with urllib.request.urlopen(req, timeout=30) as r:
-              data = json.load(r)
+          # Try Buffer's GraphQL (newer) at correct endpoint first, then REST fallback
+          endpoints = [
+              ("https://api.buffer.com/graphql", "graphql"),
+              ("https://api.bufferapp.com/2/profiles.json", "rest"),
+          ]
 
-          channels = (data.get("data") or {}).get("channels") or []
-          print(f"::notice::Found {len(channels)} channels total")
+          channels = []
+          used = None
+          for url, kind in endpoints:
+              try:
+                  if kind == "graphql":
+                      body = json.dumps({
+                          "query": "query { channels { id name service serviceId serviceUsername organizationId } }"
+                      }).encode()
+                      req = urllib.request.Request(url, data=body, headers={
+                          "Authorization": f"Bearer {token}",
+                          "Content-Type": "application/json",
+                      })
+                  else:
+                      req = urllib.request.Request(f"{url}?access_token={token}")
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      data = json.load(r)
+                  if kind == "graphql":
+                      channels = (data.get("data") or {}).get("channels") or []
+                  else:
+                      # REST returns a raw list of profiles
+                      channels = data if isinstance(data, list) else []
+                  used = kind
+                  break
+              except Exception as e:
+                  print(f"[{kind}] {url} failed: {e}")
+
+          if not used:
+              print("::error::Could not reach Buffer API on any endpoint")
+              raise SystemExit(1)
+
+          print(f"::notice::Found {len(channels)} channels via {used}")
           print(f"Organization ID configured: {org_id}")
           print()
-          print(f"{'SERVICE':<12} {'HANDLE':<30} {'NAME':<30} {'ID'}")
-          print("-" * 100)
-          for ch in channels:
-              svc = (ch.get("service") or "").ljust(12)
-              handle = (ch.get("serviceUsername") or "").ljust(30)
-              name = (ch.get("name") or "")[:30].ljust(30)
-              print(f"{svc} {handle} {name} {ch.get('id')}")
 
-          # Look specifically for toolstack, milo, or animal accounts
+          if used == "graphql":
+              print(f"{'SERVICE':<12} {'HANDLE':<30} {'NAME':<30} {'ID'}")
+              print("-" * 100)
+              for ch in channels:
+                  svc = (ch.get("service") or "").ljust(12)
+                  handle = (ch.get("serviceUsername") or "").ljust(30)
+                  name = (ch.get("name") or "")[:30].ljust(30)
+                  print(f"{svc} {handle} {name} {ch.get('id')}")
+          else:
+              # REST profile shape
+              print(f"{'SERVICE':<12} {'HANDLE':<35} {'FORMATTED USERNAME':<25} {'ID'}")
+              print("-" * 110)
+              for ch in channels:
+                  svc = (ch.get("service") or "").ljust(12)
+                  handle = (ch.get("service_username") or "").ljust(35)
+                  formatted = (ch.get("formatted_username") or "")[:25].ljust(25)
+                  print(f"{svc} {handle} {formatted} {ch.get('id')}")
+
           print()
-          print("=== Filtered for toolstack / animal / cat ===")
+          print("=== Filtered for toolstack / milo / cat / animal / y4g ===")
           for ch in channels:
               blob = json.dumps(ch).lower()
               if any(k in blob for k in ["toolstack", "milo", "cat", "animal", "y4g"]):
