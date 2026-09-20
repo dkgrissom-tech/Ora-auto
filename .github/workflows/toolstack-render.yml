@@ -24,6 +24,7 @@ jobs:
       REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       TOOLSTACK_RENDER_ENABLED: ${{ vars.TOOLSTACK_RENDER_ENABLED || 'true' }}
       TOOLSTACK_DRY_RUN: ${{ github.event.inputs.dry_run || vars.TOOLSTACK_DRY_RUN || 'false' }}
+      TOOLSTACK_MODEL_VERSION: 4eaf2b01d3bf70d8a2e00b219efeb7cb415855ad18b7dacdc4cae664a73a6eea
     steps:
       - uses: actions/checkout@v4
         with:
