@@ -16,6 +16,9 @@ concurrency:
   group: toolstack-render
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   render:
     runs-on: ubuntu-latest
