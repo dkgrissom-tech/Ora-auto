@@ -19,6 +19,6 @@ import os
 # or as an env var - one place, both scripts.
 TIKTOK_ALLOWED_BRANDS = {
     b.strip().lower()
-    for b in os.environ.get("TIKTOK_ALLOWED_BRANDS", "ora,grissom").split(",")
+    for b in os.environ.get("TIKTOK_ALLOWED_BRANDS", "ora,grissom,toolstack").split(",")
     if b.strip()
 }
