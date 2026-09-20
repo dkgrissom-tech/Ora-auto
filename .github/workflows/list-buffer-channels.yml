@@ -52,7 +52,7 @@ jobs:
           r = requests.post(
               "https://api.buffer.com",
               headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-              json={"query": "{ account { organizations { id name channels { id name service serviceUsername } } } }"},
+              json={"query": "{ account { organizations { id name channels { id name service serviceType serviceId } } } }"},
               timeout=30,
           )
           print(f"::notice::HTTP status: {r.status_code}")
@@ -76,7 +76,7 @@ jobs:
               print("    " + "-" * 100)
               for ch in channels:
                   svc = (ch.get("service") or "").ljust(12)
-                  handle = (ch.get("serviceUsername") or "").ljust(35)
+                  handle = (ch.get("serviceId") or "").ljust(35)
                   name = (ch.get("name") or "")[:30].ljust(30)
                   print(f"    {svc} {handle} {name} {ch.get('id')}")
           PY
