@@ -7,15 +7,22 @@ jobs:
   list:
     runs-on: ubuntu-latest
     steps:
-      - name: Query Buffer channels via known-working endpoint
+      - uses: actions/checkout@v4
+      - name: Query Buffer channels via existing scheduler client
         env:
           BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
         run: |
+          pip install requests -q
           python3 <<'PY'
-          import os, json, urllib.request
+          import os, sys, json, time
+          sys.path.insert(0, "scripts")
 
-          token = os.environ["BUFFER_ACCESS_TOKEN"]
+          # Reuse the scheduler's proven buffer_gql (handles Buffer's flaky 401s
+          # with retries) and BUFFER_API constant so we hit the exact endpoint
+          # that already publishes posts every day.
+          from run_scheduler import buffer_gql
 
+          # Try channels-per-org first
           query = """
           {
             account {
@@ -27,32 +34,39 @@ jobs:
                   name
                   service
                   serviceUsername
-                  serviceType
                 }
               }
             }
           }
           """
-          req = urllib.request.Request(
-              "https://api.buffer.com",
-              data=json.dumps({"query": query, "variables": {}}).encode(),
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
-          )
-          with urllib.request.urlopen(req, timeout=30) as r:
-              data = json.load(r)
+          data, err = buffer_gql(query, {})
+          if err:
+              print(f"::error::{err}")
+              # Fallback: some tokens can't read organizations; try top-level channels
+              print("Trying fallback: top-level channels query")
+              data2, err2 = buffer_gql(
+                  "{ channels { id name service serviceUsername organizationId } }",
+                  {},
+              )
+              if err2:
+                  print(f"::error::fallback failed: {err2}")
+                  sys.exit(1)
+              chans = (data2 or {}).get("channels") or []
+              print(f"::notice::Found {len(chans)} channels (flat)")
+              print(f"{'SERVICE':<12} {'HANDLE':<35} {'NAME':<30} {'ID'}")
+              print("-" * 100)
+              for ch in chans:
+                  svc = (ch.get("service") or "").ljust(12)
+                  handle = (ch.get("serviceUsername") or "").ljust(35)
+                  name = (ch.get("name") or "")[:30].ljust(30)
+                  print(f"{svc} {handle} {name} {ch.get('id')}")
+              sys.exit(0)
 
-          print("Raw response keys:", list(data.keys()))
-          if data.get("errors"):
-              print("GraphQL errors:", json.dumps(data["errors"], indent=2))
-          orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
+          orgs = ((data or {}).get("account") or {}).get("organizations") or []
           print(f"::notice::Found {len(orgs)} organization(s)")
-          print()
           for org in orgs:
-              oid = org.get('id','')
-              print(f"### Org: {org.get('name')} (id={oid[:8] if oid else '?'}...)")
+              oid = org.get('id', '')
+              print(f"\n### Org: {org.get('name')} (id={oid[:8] if oid else '?'}...)")
               channels = org.get("channels") or []
               print(f"    {len(channels)} channels:")
               print(f"    {'SERVICE':<12} {'HANDLE':<35} {'NAME':<30} {'ID'}")
@@ -62,5 +76,4 @@ jobs:
                   handle = (ch.get("serviceUsername") or "").ljust(35)
                   name = (ch.get("name") or "")[:30].ljust(30)
                   print(f"    {svc} {handle} {name} {ch.get('id')}")
-              print()
           PY
