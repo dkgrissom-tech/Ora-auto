@@ -274,8 +274,105 @@ def main() -> int:
             break
     write_queue(rows)
 
+    # Bridge: write a scheduled post block so the auto-post workflow picks
+    # this MP4 up on its slot hour. Morning=14:00 UTC (09:00 CDT),
+    # Evening=22:00 UTC (17:00 CDT), matching this workflow's own cron.
+    write_post_block(row, final)
+
     log("DONE")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Post-block bridge
+# ---------------------------------------------------------------------------
+#
+# The auto-post scheduler reads brands/<brand>/posts/YYYY-MM-DD.md and fires
+# blocks whose header hour matches the current UTC hour. This function writes
+# one block per rendered creative so no manual hand-off is needed between the
+# renderer and the poster. It fans out to TikTok (@amgriss1 via Buffer),
+# Instagram (dkgrissom via Buffer), and Pinterest (Grissompress board via
+# Buffer).
+
+SLOT_TO_HOUR = {"morning": 14, "evening": 22}
+SLOT_TO_CDT = {"morning": "09:00 CDT", "evening": "17:00 CDT"}
+
+# Fixed hashtag set per character. Kept small and stable so posts read as a
+# series rather than a hashtag dump.
+SERIES_TAGS = {
+    "milo":    "#TalkingCats #OfficeCat #CatTok #FunnyCats #WorkLife",
+    "milo2":   "#TalkingCats #OfficeCat #CatTok #FunnyCats #WorkLife",
+    "rita":    "#Raccoon #TrashPanda #FunnyAnimals #NeighborhoodDrama",
+    "barkley": "#DetectiveDog #GoldenRetriever #NoirComedy #FunnyDogs",
+}
+
+
+def _pinterest_title(series: str, hook: str) -> str:
+    """Short Pinterest title — first 90 chars of the hook, series-prefixed."""
+    label = {
+        "milo": "Milo the Office Cat",
+        "milo2": "Milo the Office Cat",
+        "rita": "Rita the Raccoon",
+        "barkley": "Detective Barkley",
+    }.get(series, series.title())
+    body = (hook or "").strip().rstrip(".")
+    return f"{label}: {body}"[:100]
+
+
+def write_post_block(row: dict, video_path: Path) -> None:
+    """Append a scheduled post block for the rendered MP4.
+
+    Idempotent per creative_id: if a block with the same id already exists in
+    the target date file, we do not write a second one. Safe to call on retry.
+    """
+    creative_id = row["creative_id"]
+    scheduled_date = row.get("scheduled_date", "").strip()
+    slot = row.get("time_slot", "").strip().lower()
+    series = row.get("series", "").strip().lower()
+    hook = row.get("hook", "").strip()
+
+    hour = SLOT_TO_HOUR.get(slot)
+    if hour is None:
+        log(f"POST_BLOCK skipped — unknown time_slot={slot!r}")
+        return
+    if not scheduled_date:
+        log(f"POST_BLOCK skipped — no scheduled_date on {creative_id}")
+        return
+
+    # Path is repo-relative, as the poster resolves relative to repo root.
+    rel_video = video_path.relative_to(ROOT).as_posix()
+    tags = SERIES_TAGS.get(series, "#TalkingAnimals #FunnyAnimals")
+    pin_title = _pinterest_title(series, hook)
+
+    posts_dir = ROOT / "brands" / "toolstack" / "posts"
+    posts_dir.mkdir(parents=True, exist_ok=True)
+    target = posts_dir / f"{scheduled_date}.md"
+
+    marker_id = f"toolstack-{scheduled_date}-{hour:02d}00-{creative_id.lower()}"
+    existing = target.read_text() if target.exists() else ""
+    if f"CLONE:START id={marker_id}" in existing:
+        log(f"POST_BLOCK exists for {creative_id} — no-op")
+        return
+
+    header = existing if existing else f"# Toolstack — Animal Shorts — {scheduled_date}\n"
+    # `\n## ` splits the block parser's input, so keep exactly that shape.
+    block = (
+        f"\n<!-- CLONE:START id={marker_id} -->\n"
+        f"## {hour:02d}:00 UTC  ({SLOT_TO_CDT[slot]})\n"
+        f"platforms: tiktok, instagram, pinterest\n"
+        f"video: {rel_video}\n"
+        f"image: {rel_video}\n"  # Buffer Pinterest wants an image; MP4 is fine as the media
+        f"creative_id: {creative_id}\n"
+        f"series: {series}\n"
+        f"pinterest_title: {pin_title}\n"
+        f"---\n"
+        f"{hook}\n\n"
+        f"{tags}\n"
+        f"---\n"
+        f"<!-- CLONE:END -->\n"
+    )
+    target.write_text(header + block)
+    log(f"POST_BLOCK wrote {target.name} for {creative_id} at {hour:02d}:00 UTC")
 
 
 if __name__ == "__main__":

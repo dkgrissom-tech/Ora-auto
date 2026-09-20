@@ -36,7 +36,7 @@ LOG_DIR = ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 # Brands registered to this poster
-BRANDS = ["ora", "grissom", "familybook"]
+BRANDS = ["ora", "grissom", "familybook", "toolstack"]
 
 def log(msg):
     ts = dt.datetime.utcnow().isoformat() + "Z"
