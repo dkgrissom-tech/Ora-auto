@@ -1010,10 +1010,22 @@ def post_buffer(brand, text, image_path, service="instagram", alt_text=None,
 
     assets = []
     if image_path:
-        assets.append({"image": {
-            "url": asset_url(image_path),
-            "metadata": {"altText": (alt_text or text or brand)[:400]},
-        }})
+        is_video = image_path.lower().endswith((".mp4", ".mov", ".webm"))
+        if is_video:
+            # Buffer's GraphQL API requires a distinct `video` asset schema
+            # for video files. Passing a video URL under `image` triggers a
+            # "Image could not be read from its URL" InvalidInputError because
+            # Buffer's image validator rejects video bytes.
+            # thumbnailOffset selects the frame Buffer generates as the poster.
+            assets.append({"video": {
+                "url": asset_url(image_path),
+                "metadata": {"thumbnailOffset": 12800},
+            }})
+        else:
+            assets.append({"image": {
+                "url": asset_url(image_path),
+                "metadata": {"altText": (alt_text or text or brand)[:400]},
+            }})
 
     variables = {"input": {
         "channelId": channel,
