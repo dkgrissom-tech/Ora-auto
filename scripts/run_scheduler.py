@@ -230,11 +230,18 @@ def asset_url(path):
     # /assets/handyhearts/, so we rewrite brands/handyhearts/renders/<id>.mp4
     # accordingly.
     if path.lower().endswith((".mp4", ".mov", ".webm")):
-        if path.startswith("brands/handyhearts/renders/"):
-            fname = path.rsplit("/", 1)[-1]
-            return f"https://dkgrissom-tech.github.io/Ora-auto/assets/handyhearts/{fname}"
-        # For other video paths, fall through to raw (may still fail on Buffer,
-        # but at least the request is well-formed).
+        # gh-pages-shop branch mirrors brand video assets under /assets/<brand>/
+        # so Buffer receives them with content-type video/mp4 instead of
+        # application/octet-stream.
+        VIDEO_MIRRORS = {
+            "brands/handyhearts/renders/": "handyhearts",
+            "brands/toolstack/assets/": "toolstack",
+        }
+        for prefix, subdir in VIDEO_MIRRORS.items():
+            if path.startswith(prefix):
+                fname = path.rsplit("/", 1)[-1]
+                return f"https://dkgrissom-tech.github.io/Ora-auto/assets/{subdir}/{fname}"
+        # Unmirrored video path — fall through to raw (may still fail on Buffer).
     return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
 
 # Bluesky uploads images as blobs rather than by URL, and the PDS rejects any
