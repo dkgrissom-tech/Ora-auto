@@ -152,10 +152,23 @@ def videogen_headers() -> dict:
 
 
 def http_json(method: str, url: str, body: dict | None = None) -> dict:
+    from urllib.error import HTTPError
     data = json.dumps(body).encode() if body is not None else None
     req = Request(url, data=data, method=method, headers=videogen_headers())
-    with urlopen(req, timeout=VIDEOGEN_TIMEOUT_S) as resp:
-        return json.loads(resp.read().decode())
+    try:
+        with urlopen(req, timeout=VIDEOGEN_TIMEOUT_S) as resp:
+            return json.loads(resp.read().decode())
+    except HTTPError as e:
+        # Surface the response body — a bare "403 Forbidden" with no context
+        # is useless when debugging auth issues.
+        try:
+            err_body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            err_body = "<no body>"
+        raise RuntimeError(
+            f"VideoGen {method} {url} → HTTP {e.code} {e.reason}\n"
+            f"Response body: {err_body[:2000]}"
+        ) from None
 
 
 def run_videogen(script: str, scenes: list[dict]) -> str:
