@@ -359,7 +359,10 @@ def write_post_block(row: dict, video_path: Path) -> None:
     block = (
         f"\n<!-- CLONE:START id={marker_id} -->\n"
         f"## {hour:02d}:00 UTC  ({SLOT_TO_CDT[slot]})\n"
-        f"platforms: tiktok, instagram, pinterest\n"
+        # Instagram excluded: our current render pipeline outputs 16 fps but
+        # Instagram Posts/Reels require >=23 fps. TikTok is the primary
+        # discovery channel for animal shorts anyway; Pinterest kept for pins.
+        f"platforms: tiktok, pinterest\n"
         f"video: {rel_video}\n"
         f"image: {rel_video}\n"  # Buffer Pinterest wants an image; MP4 is fine as the media
         f"creative_id: {creative_id}\n"
