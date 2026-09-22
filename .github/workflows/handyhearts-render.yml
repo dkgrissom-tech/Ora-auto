@@ -12,6 +12,10 @@ on:
         description: "Print plan only, no API call"
         required: false
         default: "false"
+      force_post_now:
+        description: "Write post block to today UTC / next :20 tick (smoke test)"
+        required: false
+        default: "false"
 
 concurrency:
   group: handyhearts-render
@@ -28,6 +32,7 @@ jobs:
       VIDEOGEN_API_KEY: ${{ secrets.VIDEOGEN_API_KEY }}
       HANDYHEARTS_RENDER_ENABLED: ${{ vars.HANDYHEARTS_RENDER_ENABLED || 'true' }}
       HANDYHEARTS_DRY_RUN: ${{ github.event.inputs.dry_run || vars.HANDYHEARTS_DRY_RUN || 'false' }}
+      HANDYHEARTS_FORCE_POST_NOW: ${{ github.event.inputs.force_post_now || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:

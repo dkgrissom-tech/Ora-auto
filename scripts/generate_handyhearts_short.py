@@ -348,6 +348,19 @@ def write_post_block(row: dict, video_path: Path) -> None:
         log(f"POST_BLOCK skipped — no scheduled_date on {creative_id}")
         return
 
+    # Force-post override: write the block into TODAY UTC at the next reachable
+    # hour (either current hour or current+1) so the auto-poster's next :20 tick
+    # picks it up. Used for smoke tests. Also stamps the scheduled_date/time_slot
+    # back onto the row so re-runs don't try to fire it again.
+    if env_bool("HANDYHEARTS_FORCE_POST_NOW", False):
+        now = datetime.now(timezone.utc)
+        # Next tick fires at :20 of every hour. If we are before :20 this hour,
+        # target THIS hour. Otherwise target next hour.
+        target_hour = now.hour if now.minute < 20 else (now.hour + 1) % 24
+        scheduled_date = now.strftime("%Y-%m-%d")
+        hour = target_hour
+        log(f"FORCE_POST_NOW → writing block for {scheduled_date} at {hour:02d}:00 UTC")
+
     rel_video = video_path.relative_to(ROOT).as_posix()
 
     posts_dir = ROOT / "brands" / "grissom" / "posts"
