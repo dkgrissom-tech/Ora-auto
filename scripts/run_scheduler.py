@@ -222,6 +222,19 @@ def pin_link(brand, dest_url):
             or DEFAULT_PIN_LINKS.get(brand, ""))
 
 def asset_url(path):
+    # Videos MUST be served with a proper Content-Type (video/mp4). GitHub's
+    # raw.githubusercontent.com serves .mp4 as application/octet-stream, which
+    # makes Buffer reject the post with "Image could not be read from its URL".
+    # GitHub Pages returns the correct video/mp4 header, so route video assets
+    # through Pages. The gh-pages-shop branch mirrors handyhearts videos under
+    # /assets/handyhearts/, so we rewrite brands/handyhearts/renders/<id>.mp4
+    # accordingly.
+    if path.lower().endswith((".mp4", ".mov", ".webm")):
+        if path.startswith("brands/handyhearts/renders/"):
+            fname = path.rsplit("/", 1)[-1]
+            return f"https://dkgrissom-tech.github.io/Ora-auto/assets/handyhearts/{fname}"
+        # For other video paths, fall through to raw (may still fail on Buffer,
+        # but at least the request is well-formed).
     return f"https://raw.githubusercontent.com/dkgrissom-tech/Ora-auto/main/{path}"
 
 # Bluesky uploads images as blobs rather than by URL, and the PDS rejects any
