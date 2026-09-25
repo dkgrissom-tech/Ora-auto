@@ -23,3 +23,6 @@ timestamp_utc,creative_id,beat,model,seconds,estimated_cost_usd
 2026-09-25T00:14:10.748275+00:00,MILO2-D04-EVE,1,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
 2026-09-25T00:14:34.582126+00:00,MILO2-D04-EVE,2,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
 2026-09-25T00:14:57.893257+00:00,MILO2-D04-EVE,3,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-09-25T18:25:47.203338+00:00,MILO-D05-MOR,1,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-09-25T18:26:13.112725+00:00,MILO-D05-MOR,2,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-09-25T18:26:36.583861+00:00,MILO-D05-MOR,3,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
