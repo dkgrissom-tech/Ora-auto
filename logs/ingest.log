@@ -7241,3 +7241,132 @@
 [2026-09-27T08:35:05.833306Z] [ingest] [familybook] summary: {'drafts': 0, 'blocks': 0, 'wrote': 0, 'skipped': 0, 'invalid': 0}
 [2026-09-27T08:35:05.833339Z] [ingest] TOTAL: {'drafts': 3, 'blocks': 1, 'wrote': 0, 'skipped': 0, 'invalid': 1}
 [2026-09-27T08:35:05.833369Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
+[2026-09-27T14:19:31.735621Z] [ingest] Ingest tick — brands=['ora', 'grissom', 'familybook'] dry_run=False
+[2026-09-27T14:19:31.741859Z] [ingest] [ora] empty draft: 3am-idea-tiktok-2026-08-03.md
+[2026-09-27T14:19:31.742867Z] [ingest] [ora] wrote: 2026-10-01 00:00 UTC (id=ad1fc7b6e37c, platforms=['bluesky']) -> brands/ora/posts/2026-10-01.md
+[2026-09-27T14:19:31.743055Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-09-30-evening.md
+[2026-09-27T14:19:31.743437Z] [ingest] [ora] wrote: 2026-09-30 14:00 UTC (id=344e565e20ba, platforms=['bluesky']) -> brands/ora/posts/2026-09-30.md
+[2026-09-27T14:19:31.743589Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-09-30-morning.md
+[2026-09-27T14:19:31.743960Z] [ingest] [ora] wrote: 2026-10-02 00:00 UTC (id=cbe12e427b7b, platforms=['bluesky']) -> brands/ora/posts/2026-10-02.md
+[2026-09-27T14:19:31.744091Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-01-evening.md
+[2026-09-27T14:19:31.744383Z] [ingest] [ora] wrote: 2026-10-01 14:00 UTC (id=72e6de8bc85a, platforms=['bluesky']) -> brands/ora/posts/2026-10-01.md
+[2026-09-27T14:19:31.744556Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-01-morning.md
+[2026-09-27T14:19:31.744962Z] [ingest] [ora] wrote: 2026-10-03 00:00 UTC (id=1ba29bc14858, platforms=['bluesky']) -> brands/ora/posts/2026-10-03.md
+[2026-09-27T14:19:31.745128Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-02-evening.md
+[2026-09-27T14:19:31.745573Z] [ingest] [ora] wrote: 2026-10-02 14:00 UTC (id=f19e0bc53c76, platforms=['bluesky']) -> brands/ora/posts/2026-10-02.md
+[2026-09-27T14:19:31.745770Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-02-morning.md
+[2026-09-27T14:19:31.746207Z] [ingest] [ora] wrote: 2026-10-04 00:00 UTC (id=df118443a647, platforms=['bluesky']) -> brands/ora/posts/2026-10-04.md
+[2026-09-27T14:19:31.746362Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-03-evening.md
+[2026-09-27T14:19:31.746689Z] [ingest] [ora] wrote: 2026-10-03 14:00 UTC (id=8b92a70603e7, platforms=['bluesky']) -> brands/ora/posts/2026-10-03.md
+[2026-09-27T14:19:31.746830Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-03-morning.md
+[2026-09-27T14:19:31.747233Z] [ingest] [ora] wrote: 2026-10-05 00:00 UTC (id=ddcb501fd560, platforms=['bluesky']) -> brands/ora/posts/2026-10-05.md
+[2026-09-27T14:19:31.747387Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-04-evening.md
+[2026-09-27T14:19:31.747755Z] [ingest] [ora] wrote: 2026-10-04 14:00 UTC (id=a306aefe0f20, platforms=['bluesky']) -> brands/ora/posts/2026-10-04.md
+[2026-09-27T14:19:31.747923Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-04-morning.md
+[2026-09-27T14:19:31.748340Z] [ingest] [ora] wrote: 2026-10-06 00:00 UTC (id=32dc35a9527f, platforms=['bluesky']) -> brands/ora/posts/2026-10-06.md
+[2026-09-27T14:19:31.748509Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-05-evening.md
+[2026-09-27T14:19:31.748867Z] [ingest] [ora] wrote: 2026-10-05 14:00 UTC (id=1ea6b7083555, platforms=['bluesky']) -> brands/ora/posts/2026-10-05.md
+[2026-09-27T14:19:31.749013Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-05-morning.md
+[2026-09-27T14:19:31.749424Z] [ingest] [ora] wrote: 2026-10-07 00:00 UTC (id=ec488f8e4288, platforms=['bluesky']) -> brands/ora/posts/2026-10-07.md
+[2026-09-27T14:19:31.749652Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-06-evening.md
+[2026-09-27T14:19:31.749926Z] [ingest] [ora] wrote: 2026-10-06 14:00 UTC (id=548b5cf14399, platforms=['bluesky']) -> brands/ora/posts/2026-10-06.md
+[2026-09-27T14:19:31.750027Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-06-morning.md
+[2026-09-27T14:19:31.750378Z] [ingest] [ora] wrote: 2026-10-08 00:00 UTC (id=8cb620e97dd9, platforms=['bluesky']) -> brands/ora/posts/2026-10-08.md
+[2026-09-27T14:19:31.750587Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-07-evening.md
+[2026-09-27T14:19:31.750860Z] [ingest] [ora] wrote: 2026-10-07 14:00 UTC (id=ad95c0239a91, platforms=['bluesky']) -> brands/ora/posts/2026-10-07.md
+[2026-09-27T14:19:31.750992Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-07-morning.md
+[2026-09-27T14:19:31.751369Z] [ingest] [ora] wrote: 2026-10-09 00:00 UTC (id=5e25f9a3e11f, platforms=['bluesky']) -> brands/ora/posts/2026-10-09.md
+[2026-09-27T14:19:31.751543Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-08-evening.md
+[2026-09-27T14:19:31.751901Z] [ingest] [ora] wrote: 2026-10-08 14:00 UTC (id=7128e2af370b, platforms=['bluesky']) -> brands/ora/posts/2026-10-08.md
+[2026-09-27T14:19:31.752065Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-08-morning.md
+[2026-09-27T14:19:31.752509Z] [ingest] [ora] wrote: 2026-10-10 00:00 UTC (id=c6b3db73d94e, platforms=['bluesky']) -> brands/ora/posts/2026-10-10.md
+[2026-09-27T14:19:31.752673Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-09-evening.md
+[2026-09-27T14:19:31.753027Z] [ingest] [ora] wrote: 2026-10-09 14:00 UTC (id=6c2bbdccc7d3, platforms=['bluesky']) -> brands/ora/posts/2026-10-09.md
+[2026-09-27T14:19:31.753231Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-09-morning.md
+[2026-09-27T14:19:31.753578Z] [ingest] [ora] wrote: 2026-10-11 00:00 UTC (id=2bce022568ed, platforms=['bluesky']) -> brands/ora/posts/2026-10-11.md
+[2026-09-27T14:19:31.753725Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-10-evening.md
+[2026-09-27T14:19:31.754044Z] [ingest] [ora] wrote: 2026-10-10 14:00 UTC (id=a86d098f83db, platforms=['bluesky']) -> brands/ora/posts/2026-10-10.md
+[2026-09-27T14:19:31.754212Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-10-morning.md
+[2026-09-27T14:19:31.754562Z] [ingest] [ora] wrote: 2026-10-12 00:00 UTC (id=2afbac4f7b82, platforms=['bluesky']) -> brands/ora/posts/2026-10-12.md
+[2026-09-27T14:19:31.754703Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-11-evening.md
+[2026-09-27T14:19:31.755017Z] [ingest] [ora] wrote: 2026-10-11 14:00 UTC (id=0c76deadc058, platforms=['bluesky']) -> brands/ora/posts/2026-10-11.md
+[2026-09-27T14:19:31.755190Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-11-morning.md
+[2026-09-27T14:19:31.755557Z] [ingest] [ora] wrote: 2026-10-13 00:00 UTC (id=1a7590c094ad, platforms=['bluesky']) -> brands/ora/posts/2026-10-13.md
+[2026-09-27T14:19:31.755733Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-12-evening.md
+[2026-09-27T14:19:31.756104Z] [ingest] [ora] wrote: 2026-10-12 14:00 UTC (id=c447323c49e0, platforms=['bluesky']) -> brands/ora/posts/2026-10-12.md
+[2026-09-27T14:19:31.756323Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-12-morning.md
+[2026-09-27T14:19:31.756713Z] [ingest] [ora] wrote: 2026-10-14 00:00 UTC (id=af291b7e8f9c, platforms=['bluesky']) -> brands/ora/posts/2026-10-14.md
+[2026-09-27T14:19:31.756885Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-13-evening.md
+[2026-09-27T14:19:31.757263Z] [ingest] [ora] wrote: 2026-10-13 14:00 UTC (id=1a597bb7a152, platforms=['bluesky']) -> brands/ora/posts/2026-10-13.md
+[2026-09-27T14:19:31.757414Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-13-morning.md
+[2026-09-27T14:19:31.757777Z] [ingest] [ora] wrote: 2026-10-15 00:00 UTC (id=dca5545d6430, platforms=['bluesky']) -> brands/ora/posts/2026-10-15.md
+[2026-09-27T14:19:31.757948Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-14-evening.md
+[2026-09-27T14:19:31.758365Z] [ingest] [ora] wrote: 2026-10-14 14:00 UTC (id=28452785834e, platforms=['bluesky']) -> brands/ora/posts/2026-10-14.md
+[2026-09-27T14:19:31.758526Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-14-morning.md
+[2026-09-27T14:19:31.758933Z] [ingest] [ora] wrote: 2026-10-16 00:00 UTC (id=a734b511af27, platforms=['bluesky']) -> brands/ora/posts/2026-10-16.md
+[2026-09-27T14:19:31.759103Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-15-evening.md
+[2026-09-27T14:19:31.759476Z] [ingest] [ora] wrote: 2026-10-15 14:00 UTC (id=ad1bfd2961ec, platforms=['bluesky']) -> brands/ora/posts/2026-10-15.md
+[2026-09-27T14:19:31.759622Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-15-morning.md
+[2026-09-27T14:19:31.759979Z] [ingest] [ora] wrote: 2026-10-17 00:00 UTC (id=74ea74782866, platforms=['bluesky']) -> brands/ora/posts/2026-10-17.md
+[2026-09-27T14:19:31.760132Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-16-evening.md
+[2026-09-27T14:19:31.760590Z] [ingest] [ora] wrote: 2026-10-16 14:00 UTC (id=3ee75ce0cd1b, platforms=['bluesky']) -> brands/ora/posts/2026-10-16.md
+[2026-09-27T14:19:31.760766Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-16-morning.md
+[2026-09-27T14:19:31.761129Z] [ingest] [ora] wrote: 2026-10-18 00:00 UTC (id=d77dcde3d6c2, platforms=['bluesky']) -> brands/ora/posts/2026-10-18.md
+[2026-09-27T14:19:31.761312Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-17-evening.md
+[2026-09-27T14:19:31.761649Z] [ingest] [ora] wrote: 2026-10-17 14:00 UTC (id=b52ac83f73ff, platforms=['bluesky']) -> brands/ora/posts/2026-10-17.md
+[2026-09-27T14:19:31.761833Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-17-morning.md
+[2026-09-27T14:19:31.762272Z] [ingest] [ora] wrote: 2026-10-19 00:00 UTC (id=e1fef356d0ac, platforms=['bluesky']) -> brands/ora/posts/2026-10-19.md
+[2026-09-27T14:19:31.762456Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-18-evening.md
+[2026-09-27T14:19:31.762838Z] [ingest] [ora] wrote: 2026-10-18 14:00 UTC (id=fb54255078ed, platforms=['bluesky']) -> brands/ora/posts/2026-10-18.md
+[2026-09-27T14:19:31.763007Z] [ingest] [ora] archived draft -> clone_drafts/ora/_processed/20260927T141931Z__ora-bluesky-2026-10-18-morning.md
+[2026-09-27T14:19:31.763130Z] [ingest] [ora] empty draft: self-serve-test-2026-08-03.md
+[2026-09-27T14:19:31.763252Z] [ingest] [ora] summary: {'drafts': 40, 'blocks': 38, 'wrote': 38, 'skipped': 0, 'invalid': 0}
+[2026-09-27T14:19:31.764198Z] [ingest] [grissom] wrote: 2026-10-13 00:00 UTC (id=a76117e8edb9, platforms=['bluesky']) -> brands/grissom/posts/2026-10-13.md
+[2026-09-27T14:19:31.764380Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-12-evening.md
+[2026-09-27T14:19:31.764764Z] [ingest] [grissom] wrote: 2026-10-12 14:00 UTC (id=16d05cb7335e, platforms=['bluesky']) -> brands/grissom/posts/2026-10-12.md
+[2026-09-27T14:19:31.764928Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-12-morning.md
+[2026-09-27T14:19:31.765362Z] [ingest] [grissom] wrote: 2026-10-14 00:00 UTC (id=51d83e76166c, platforms=['bluesky']) -> brands/grissom/posts/2026-10-14.md
+[2026-09-27T14:19:31.765545Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-13-evening.md
+[2026-09-27T14:19:31.765935Z] [ingest] [grissom] wrote: 2026-10-13 14:00 UTC (id=eea149a4e554, platforms=['bluesky']) -> brands/grissom/posts/2026-10-13.md
+[2026-09-27T14:19:31.766115Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-13-morning.md
+[2026-09-27T14:19:31.766569Z] [ingest] [grissom] wrote: 2026-10-15 00:00 UTC (id=930010ce33f5, platforms=['bluesky']) -> brands/grissom/posts/2026-10-15.md
+[2026-09-27T14:19:31.766733Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-14-evening.md
+[2026-09-27T14:19:31.767078Z] [ingest] [grissom] wrote: 2026-10-14 14:00 UTC (id=1e6491cd1d76, platforms=['bluesky']) -> brands/grissom/posts/2026-10-14.md
+[2026-09-27T14:19:31.767272Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-14-morning.md
+[2026-09-27T14:19:31.767672Z] [ingest] [grissom] wrote: 2026-10-16 00:00 UTC (id=dd96037fba4d, platforms=['bluesky']) -> brands/grissom/posts/2026-10-16.md
+[2026-09-27T14:19:31.767856Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-15-evening.md
+[2026-09-27T14:19:31.768284Z] [ingest] [grissom] wrote: 2026-10-15 14:00 UTC (id=ccf4188928a0, platforms=['bluesky']) -> brands/grissom/posts/2026-10-15.md
+[2026-09-27T14:19:31.768464Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-15-morning.md
+[2026-09-27T14:19:31.768854Z] [ingest] [grissom] wrote: 2026-10-17 00:00 UTC (id=c35433904e6d, platforms=['bluesky']) -> brands/grissom/posts/2026-10-17.md
+[2026-09-27T14:19:31.769035Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-16-evening.md
+[2026-09-27T14:19:31.769433Z] [ingest] [grissom] wrote: 2026-10-16 14:00 UTC (id=e0cd226093b5, platforms=['bluesky']) -> brands/grissom/posts/2026-10-16.md
+[2026-09-27T14:19:31.769622Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-16-morning.md
+[2026-09-27T14:19:31.770059Z] [ingest] [grissom] wrote: 2026-10-18 00:00 UTC (id=5ce02b9294ba, platforms=['bluesky']) -> brands/grissom/posts/2026-10-18.md
+[2026-09-27T14:19:31.770286Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-17-evening.md
+[2026-09-27T14:19:31.770675Z] [ingest] [grissom] wrote: 2026-10-17 14:00 UTC (id=52309c19a4dc, platforms=['bluesky']) -> brands/grissom/posts/2026-10-17.md
+[2026-09-27T14:19:31.770856Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-17-morning.md
+[2026-09-27T14:19:31.771293Z] [ingest] [grissom] wrote: 2026-10-19 00:00 UTC (id=f7e853f26359, platforms=['bluesky']) -> brands/grissom/posts/2026-10-19.md
+[2026-09-27T14:19:31.771487Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-18-evening.md
+[2026-09-27T14:19:31.771904Z] [ingest] [grissom] wrote: 2026-10-18 14:00 UTC (id=4dc62097e44d, platforms=['bluesky']) -> brands/grissom/posts/2026-10-18.md
+[2026-09-27T14:19:31.772089Z] [ingest] [grissom] archived draft -> clone_drafts/grissom/_processed/20260927T141931Z__grissom-bluesky-2026-10-18-morning.md
+[2026-09-27T14:19:31.772321Z] [ingest] [grissom] SKIP: instagram/pinterest requires image path
+[2026-09-27T14:19:31.772424Z] [ingest] [grissom] summary: {'drafts': 15, 'blocks': 15, 'wrote': 14, 'skipped': 0, 'invalid': 1}
+[2026-09-27T14:19:31.773303Z] [ingest] [familybook] wrote: 2026-09-29 00:00 UTC (id=aa9459628de3, platforms=['bluesky']) -> brands/familybook/posts/2026-09-29.md
+[2026-09-27T14:19:31.773467Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-28-evening.md
+[2026-09-27T14:19:31.773863Z] [ingest] [familybook] wrote: 2026-09-28 14:00 UTC (id=a6714484cbc5, platforms=['bluesky']) -> brands/familybook/posts/2026-09-28.md
+[2026-09-27T14:19:31.774020Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-28-morning.md
+[2026-09-27T14:19:31.774521Z] [ingest] [familybook] wrote: 2026-09-30 00:00 UTC (id=1e97b8d955af, platforms=['bluesky']) -> brands/familybook/posts/2026-09-30.md
+[2026-09-27T14:19:31.774687Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-29-evening.md
+[2026-09-27T14:19:31.775061Z] [ingest] [familybook] wrote: 2026-09-29 14:00 UTC (id=b9149c36a4cc, platforms=['bluesky']) -> brands/familybook/posts/2026-09-29.md
+[2026-09-27T14:19:31.775251Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-29-morning.md
+[2026-09-27T14:19:31.775650Z] [ingest] [familybook] wrote: 2026-10-01 00:00 UTC (id=eb30f1128990, platforms=['bluesky']) -> brands/familybook/posts/2026-10-01.md
+[2026-09-27T14:19:31.775817Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-30-evening.md
+[2026-09-27T14:19:31.776222Z] [ingest] [familybook] wrote: 2026-09-30 14:00 UTC (id=bc96478f7599, platforms=['bluesky']) -> brands/familybook/posts/2026-09-30.md
+[2026-09-27T14:19:31.776386Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-09-30-morning.md
+[2026-09-27T14:19:31.776773Z] [ingest] [familybook] wrote: 2026-10-02 00:00 UTC (id=5a4e587451d7, platforms=['bluesky']) -> brands/familybook/posts/2026-10-02.md
+[2026-09-27T14:19:31.776908Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-10-01-evening.md
+[2026-09-27T14:19:31.777301Z] [ingest] [familybook] wrote: 2026-10-01 14:00 UTC (id=5440631d9dc7, platforms=['bluesky']) -> brands/familybook/posts/2026-10-01.md
+[2026-09-27T14:19:31.777454Z] [ingest] [familybook] archived draft -> clone_drafts/familybook/_processed/20260927T141931Z__familybook-bluesky-2026-10-01-morning.md
+[2026-09-27T14:19:31.777525Z] [ingest] [familybook] summary: {'drafts': 8, 'blocks': 8, 'wrote': 8, 'skipped': 0, 'invalid': 0}
+[2026-09-27T14:19:31.777590Z] [ingest] TOTAL: {'drafts': 63, 'blocks': 61, 'wrote': 60, 'skipped': 0, 'invalid': 1}
+[2026-09-27T14:19:31.777649Z] [ingest] NOTE: 1 invalid draft(s) skipped - fix and recommit
