@@ -69,5 +69,14 @@ jobs:
             echo "Nothing to commit"
           else
             git commit -m "handyhearts: render next queued trailer [skip ci]"
-            git push
+            # Other workflows push to main too; rebase onto them and retry.
+            for i in 1 2 3 4 5; do
+              if git pull --rebase origin main; then
+                git push && exit 0
+              else
+                git rebase --abort || true
+              fi
+              sleep $((i * 5))
+            done
+            exit 1
           fi
