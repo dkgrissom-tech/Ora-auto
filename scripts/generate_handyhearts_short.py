@@ -148,6 +148,7 @@ def videogen_headers() -> dict:
     return {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; Ora-auto/1.0)",
     }
 
 
