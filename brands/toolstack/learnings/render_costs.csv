@@ -83,3 +83,6 @@ timestamp_utc,creative_id,beat,model,seconds,estimated_cost_usd
 2026-10-05T00:21:48.281053+00:00,RITA-D14-EVE,1,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
 2026-10-05T00:22:29.986103+00:00,RITA-D14-EVE,2,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
 2026-10-05T00:22:58.331564+00:00,RITA-D14-EVE,3,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-10-05T21:26:51.671658+00:00,BARKLEY-D15-MOR,1,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-10-05T21:27:39.057995+00:00,BARKLEY-D15-MOR,2,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
+2026-10-05T21:28:17.677463+00:00,BARKLEY-D15-MOR,3,wan-video/wan-2.2-i2v-480p-fast,5,0.0500
