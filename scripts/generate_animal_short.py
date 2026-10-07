@@ -193,6 +193,12 @@ def stitch(beat_paths: list[Path], out: Path) -> None:
     cmd = [
         "ffmpeg", "-y", "-f", "concat", "-safe", "0",
         "-i", str(concat),
+        # wan-2.2 480p outputs 512x768 @ 16 fps. TikTok's posting API needs
+        # 23-60 fps (Buffer accepts, TikTok silently drops), so upscale to
+        # 1080x1920 vertical and resample to 30 fps.
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,"
+               "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,fps=30",
+        "-r", "30",
         "-c:v", "libx264", "-crf", "20", "-preset", "fast",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
@@ -339,6 +345,23 @@ def write_post_block(row: dict, video_path: Path) -> None:
         log(f"POST_BLOCK skipped — no scheduled_date on {creative_id}")
         return
 
+    # The renderer often runs after its queue slot has passed (it lags the
+    # queue by up to a day), and the poster never goes back for past blocks.
+    # If the slot is already behind us, post at the next whole UTC hour today.
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    try:
+        slot_dt = datetime.strptime(scheduled_date, "%Y-%m-%d").replace(
+            hour=hour, tzinfo=timezone.utc)
+    except ValueError:
+        slot_dt = now
+    if slot_dt <= now:
+        nxt = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        log(f"POST_BLOCK slot {scheduled_date} {hour:02d}:00 already passed — "
+            f"rescheduling to {nxt:%Y-%m-%d %H}:00 UTC")
+        scheduled_date, hour = nxt.strftime("%Y-%m-%d"), nxt.hour
+    cdt_label = f"{(hour - 5) % 24:02d}:00 CDT"
+
     # Path is repo-relative, as the poster resolves relative to repo root.
     rel_video = video_path.relative_to(ROOT).as_posix()
     tags = SERIES_TAGS.get(series, "#TalkingAnimals #FunnyAnimals")
@@ -358,7 +381,7 @@ def write_post_block(row: dict, video_path: Path) -> None:
     # `\n## ` splits the block parser's input, so keep exactly that shape.
     block = (
         f"\n<!-- CLONE:START id={marker_id} -->\n"
-        f"## {hour:02d}:00 UTC  ({SLOT_TO_CDT[slot]})\n"
+        f"## {hour:02d}:00 UTC  ({cdt_label})\n"
         # Instagram excluded: our current render pipeline outputs 16 fps but
         # Instagram Posts/Reels require >=23 fps. TikTok is the primary
         # discovery channel for animal shorts anyway; Pinterest kept for pins.

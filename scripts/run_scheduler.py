@@ -235,8 +235,11 @@ def asset_url(path):
         # application/octet-stream.
         VIDEO_MIRRORS = {
             "brands/handyhearts/renders/": "handyhearts",
-            "brands/toolstack/assets/": "toolstack",
         }
+        # Toolstack renders land on main continuously; jsDelivr serves repo
+        # files with content-type video/mp4, so no gh-pages mirror step needed.
+        if path.startswith("brands/toolstack/assets/"):
+            return f"https://cdn.jsdelivr.net/gh/dkgrissom-tech/Ora-auto@main/{path}"
         for prefix, subdir in VIDEO_MIRRORS.items():
             if path.startswith(prefix):
                 fname = path.rsplit("/", 1)[-1]
@@ -1554,7 +1557,9 @@ def write_summary(results, hour):
 # gives cron up to ~2h of drift to recover from. Idempotency is enforced by
 # the ledger (see post_key), so a block delivered on its own hour will not
 # be re-sent on the catch-up sweep.
-CATCHUP_HOURS = 2
+# GitHub drops many scheduled runs (observed 4-7h gaps), so look back 8h.
+# The ledger prevents duplicate sends.
+CATCHUP_HOURS = 8
 
 
 def main():
