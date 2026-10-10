@@ -209,6 +209,79 @@ def stitch(beat_paths: list[Path], out: Path) -> None:
     concat.unlink()
 
 
+# --- Voice (free edge-tts) ------------------------------------------------
+# wan-2.2 renders silent video. Veo-era test shorts had native speech; the
+# scheduled pipeline shipped mute until this step. Each beat prompt carries
+# its line as "says: <line>.." (beat1 says the hook).
+import asyncio
+import re
+
+SERIES_VOICE = {
+    # (voice, rate, pitch) — cartoon-leaning tweaks on stock neural voices
+    "milo":    ("en-US-ChristopherNeural", "+0%",  "+12Hz"),
+    "milo2":   ("en-US-ChristopherNeural", "+0%",  "+12Hz"),
+    "rita":    ("en-US-JennyNeural",       "+6%",  "+18Hz"),
+    "barkley": ("en-US-GuyNeural",         "-6%",  "-14Hz"),
+}
+DEFAULT_VOICE = ("en-US-ChristopherNeural", "+0%", "+0Hz")
+
+
+def beat_line(prompt: str, hook: str) -> str:
+    m = re.search(r"says:\s*(.+?)\.{1,2}\s+The character speaks", prompt, re.S)
+    if m:
+        return m.group(1).strip()
+    m = re.search(r"says:\s*([^\n]+?)(?:\.\.|$)", prompt)
+    if m:
+        return m.group(1).strip()
+    return hook.strip()
+
+
+def tts(text: str, series: str, out: Path) -> None:
+    import edge_tts
+    voice, rate, pitch = SERIES_VOICE.get(series, DEFAULT_VOICE)
+    async def _go():
+        await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(out))
+    for attempt in range(3):
+        try:
+            asyncio.run(_go())
+            if out.exists() and out.stat().st_size > 1000:
+                return
+        except Exception as e:  # network blips on the runner
+            log(f"  tts attempt {attempt + 1} failed: {e}")
+        time.sleep(3)
+    raise RuntimeError(f"edge-tts failed for: {text[:60]}")
+
+
+def _dur(path: Path) -> float:
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "csv=p=0", str(path)], capture_output=True, text=True, check=True)
+    return float(out.stdout.strip() or 0)
+
+
+def voice_beat(beat_mp4: Path, line: str, series: str) -> Path:
+    """Mux a spoken line onto one silent beat. If the line is longer than the
+    clip, hold the last frame so the sentence is never cut off."""
+    mp3 = beat_mp4.with_suffix(".mp3")
+    tts(line, series, mp3)
+    vdur, adur = _dur(beat_mp4), _dur(mp3)
+    target = max(vdur, adur + 0.35)
+    hold = max(0.0, target - vdur)
+    out = beat_mp4.with_name(beat_mp4.stem + "_vo.mp4")
+    subprocess.run([
+        "ffmpeg", "-y", "-i", str(beat_mp4), "-i", str(mp3),
+        "-filter_complex",
+        f"[0:v]tpad=stop_mode=clone:stop_duration={hold:.3f}[v];"
+        f"[1:a]adelay=150|150,apad,atrim=0:{target:.3f},loudnorm=I=-14:TP=-1[a]",
+        "-map", "[v]", "-map", "[a]",
+        "-c:v", "libx264", "-crf", "18", "-preset", "fast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2",
+        "-t", f"{target:.3f}", str(out),
+    ], check=True, capture_output=True)
+    mp3.unlink(missing_ok=True)
+    return out
+
+
 # --- Main -----------------------------------------------------------------
 
 
@@ -261,7 +334,11 @@ def main() -> int:
         })
         beat_mp4 = ASSETS_DIR / f"{creative_id}_beat{i}.mp4"
         download(out_url, beat_mp4)
-        beat_paths.append(beat_mp4)
+        line = beat_line(prompt, row.get("hook", "")) if i > 1 else row.get("hook", "")
+        log(f"  beat{i} voice: {line}")
+        voiced = voice_beat(beat_mp4, line, series)
+        beat_mp4.unlink(missing_ok=True)
+        beat_paths.append(voiced)
         append_cost(creative_id, i, 5, COST_PER_BEAT_USD)
 
     final = ASSETS_DIR / f"{creative_id}.mp4"
