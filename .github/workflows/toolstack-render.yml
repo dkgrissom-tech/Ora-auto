@@ -52,9 +52,6 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Install voice (edge-tts, free)
-        run: pip install edge-tts
-
       - name: Render next queued short
         run: python scripts/generate_animal_short.py
 
