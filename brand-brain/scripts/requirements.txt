@@ -1,0 +1,2 @@
+# brand-brain scripts use stdlib only (urllib.request for Anthropic calls).
+# Kept for future additions: embeddings, retrieval, etc.

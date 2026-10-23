@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BrainMap",
+  "description": "The intellectual DNA card for one persona. Every field must be grounded in >=3 corpus samples or left null.",
+  "type": "object",
+  "required": ["identity", "voice", "cadence", "topics", "audience", "generated_at", "corpus_stats"],
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["name", "role"],
+      "properties": {
+        "name": {"type": "string"},
+        "role": {"type": "string", "description": "One-line description of who this persona is and what surface they inhabit"},
+        "core_values": {"type": "array", "items": {"type": "string"}, "description": "3-5 non-negotiable values evident in the corpus"},
+        "off_limits": {"type": "array", "items": {"type": "string"}, "description": "Topics, phrasings, or stances this persona never takes"}
+      }
+    },
+    "voice": {
+      "type": "object",
+      "properties": {
+        "sentence_length": {"type": "string", "enum": ["short", "short-to-medium", "medium", "medium-to-long", "varied"]},
+        "reading_level": {"type": "string", "description": "e.g. '8th grade', 'conversational adult'"},
+        "punctuation_quirks": {"type": "array", "items": {"type": "string"}},
+        "signature_phrases": {"type": "array", "items": {"type": "string"}, "description": "5-15 phrases that repeat across the corpus"},
+        "banned_phrases": {"type": "array", "items": {"type": "string"}, "description": "AI-ese and hype words the persona never uses"},
+        "tone_dimensions": {
+          "type": "object",
+          "description": "0-10 scales grounded in corpus examples",
+          "properties": {
+            "warmth": {"type": "integer", "minimum": 0, "maximum": 10},
+            "directness": {"type": "integer", "minimum": 0, "maximum": 10},
+            "humor": {"type": "integer", "minimum": 0, "maximum": 10},
+            "authority": {"type": "integer", "minimum": 0, "maximum": 10}
+          }
+        }
+      }
+    },
+    "cadence": {
+      "type": "object",
+      "properties": {
+        "hook_pattern": {"type": "string"},
+        "body_structure": {"type": "string"},
+        "cta_style": {"type": "string"},
+        "hashtag_style": {"type": "string"}
+      }
+    },
+    "decision_patterns": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "How this persona chooses what to say — e.g. 'starts from user pain, not feature'"
+    },
+    "topics": {
+      "type": "object",
+      "properties": {
+        "core": {"type": "array", "items": {"type": "string"}},
+        "adjacent": {"type": "array", "items": {"type": "string"}},
+        "avoid": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "audience": {
+      "type": "object",
+      "properties": {
+        "who": {"type": "string"},
+        "reads_like": {"type": "string", "description": "Comparable creators/publications this audience follows"},
+        "pain_points": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "generated_at": {"type": "string", "format": "date-time"},
+    "corpus_stats": {
+      "type": "object",
+      "properties": {
+        "files": {"type": "integer"},
+        "chars": {"type": "integer"},
+        "by_source": {"type": "object", "additionalProperties": {"type": "integer"}}
+      }
+    },
+    "hand_edited": {"type": "boolean", "default": false, "description": "Set true after human review; the diff-mode rebuild respects hand-edits when true"}
+  }
+}
